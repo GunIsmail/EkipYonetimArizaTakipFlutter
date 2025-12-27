@@ -205,7 +205,6 @@ class _ShowPersonelListPageState extends State<ShowPersonelListPage> {
   }
 }
 
-// --- Basitleştirilmiş Personel Kartı (Bütçe Yönetimi Kısımları Olmadan) ---
 class _PersonelStatusCard extends StatelessWidget {
   final Worker worker;
 

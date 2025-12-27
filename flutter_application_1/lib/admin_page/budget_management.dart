@@ -1,57 +1,6 @@
-// lib/admin_page/budget_management_page.dart
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'dart:async';
-import '../Definitions.dart'; // Api sınıfı burada tanımlanmalı
-import 'budget_history_modal.dart'; // BudgetHistoryModal widget'ı burada olmalı
-
-class Worker {
-  final String id;
-  final String name;
-  final String role;
-  final String status;
-  final Color statusColor;
-  final String phone;
-  final double budget;
-
-  const Worker({
-    required this.id,
-    required this.name,
-    required this.role,
-    required this.status,
-    required this.statusColor,
-    required this.phone,
-    required this.budget,
-  });
-
-  factory Worker.fromJson(Map<String, dynamic> json) {
-    Color _getStatusColor(String status) {
-      switch (status.toLowerCase()) {
-        case 'aktif görevde':
-          return Colors.green;
-        case 'müsait':
-          return Colors.orange;
-        case 'izinli':
-          return Colors.grey;
-        default:
-          return Colors.blue;
-      }
-    }
-
-    final String statusText = json['statusText'] as String? ?? 'Bilinmiyor';
-
-    return Worker(
-      id: json['id']?.toString() ?? 'N/A',
-      name: json['name'] as String? ?? 'Bilinmiyor',
-      role: json['role'] as String? ?? 'Tanımlanmadı',
-      status: statusText,
-      statusColor: _getStatusColor(statusText),
-      phone: json['phone'] as String? ?? 'Yok',
-      budget: (json['budget'] as num?)?.toDouble() ?? 0.0,
-    );
-  }
-}
+import '../services/budget_management_service.dart';
+import 'budget_history_modal.dart';
 
 class BudgetManagementPage extends StatefulWidget {
   const BudgetManagementPage({super.key});
@@ -61,352 +10,321 @@ class BudgetManagementPage extends StatefulWidget {
 }
 
 class _BudgetManagementPageState extends State<BudgetManagementPage> {
+  final Color _primaryColor = const Color(0xFF6C63FF);
+
   late Future<List<Worker>> _workersFuture;
-  final String _apiUrl = Api.workers;
+  final WorkerBudgetService _service = WorkerBudgetService();
 
   @override
   void initState() {
     super.initState();
-    _workersFuture = _fetchWorkers();
+    _workersFuture = _service.fetchWorkers();
   }
 
-  // --- Veri Çekme Fonksiyonu ---
-  Future<List<Worker>> _fetchWorkers() async {
-    final List<Map<String, dynamic>> simulatedData = [];
-
-    try {
-      final response = await http.get(
-        Uri.parse(_apiUrl),
-        // headers: {'Authorization': 'Bearer $accessToken'}, // Todo token mantıgına gec .
-      );
-
-      if (response.statusCode == 200) {
-        List<dynamic> jsonList = jsonDecode(utf8.decode(response.bodyBytes));
-        return jsonList.map((json) => Worker.fromJson(json)).toList();
-      } else {
-        return simulatedData.map((json) => Worker.fromJson(json)).toList();
-      }
-    } catch (e) {
-      return simulatedData.map((json) => Worker.fromJson(json)).toList();
-    }
+  void _refreshList() {
+    setState(() {
+      _workersFuture = _service.fetchWorkers();
+    });
   }
 
-  // --- Bütçe Geçmişi Modalını Gösterme ---
-  void _showBudgetHistoryModal(Worker worker) {
-    const String adminAccessToken = 'YOUR_ADMIN_ACCESS_TOKEN';
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return BudgetHistoryModal(
-          workerId: int.parse(worker.id),
-          workerName: worker.name,
-          accessToken: adminAccessToken,
-        );
-      },
-    );
-  }
-
-  // --- Bütçeyi Mutlak Olarak Düzenleme Modalını Gösterme (Açıklama Eklendi) ---
-  void _editBudget(Worker worker) {
-    final TextEditingController _budgetController = TextEditingController(
-      text: worker.budget.toStringAsFixed(2),
-    );
-    final TextEditingController _descriptionController =
-        TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('${worker.name} Bütçesini Düzenle (Mutlak Değer)'),
-          content: SingleChildScrollView(
-            child: ListBody(
-              children: <Widget>[
-                Text('Mevcut Bütçe: ${worker.budget.toStringAsFixed(2)} ₺'),
-                const SizedBox(height: 16),
-                // Yeni Bütçe Alanı
-                TextField(
-                  controller: _budgetController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  decoration: const InputDecoration(
-                    labelText: 'Yeni Mutlak Bütçe Değeri (₺)',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _descriptionController,
-                  decoration: const InputDecoration(
-                    labelText: 'Açıklama / Sebep (Zorunlu)',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('İptal'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            ElevatedButton(
-              child: const Text('Kaydet'),
-              onPressed: () {
-                final double? newBudget = double.tryParse(
-                  _budgetController.text.replaceAll(',', '.'),
-                );
-                final String customDescription = _descriptionController.text
-                    .trim(); // DEĞER ALINDI
-
-                if (newBudget != null &&
-                    newBudget >= 0 &&
-                    customDescription.isNotEmpty) {
-                  // KONTROL EKLENDİ
-                  Navigator.of(context).pop();
-                  _updateBudgetOnBackend(
-                    worker.id,
-                    newBudget,
-                    'Mutlak Değer Düzenlemesi: $customDescription', // GÖNDERİLİYOR
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Lütfen geçerli bir bütçe değeri ve açıklama girin.',
-                      ),
-                    ),
-                  );
-                }
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // --- Bütçe Ekleme/Çıkarma Modalını Gösterme (Açıklama Eklendi) ---
-  void _showBudgetTransactionModal(Worker worker, {required bool isAddition}) {
-    final TextEditingController _amountController = TextEditingController();
-    final TextEditingController _descriptionController =
-        TextEditingController();
-    final String action = isAddition ? 'Ekleme' : 'Çıkarma';
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('${worker.name} Bütçesine $action Yap'),
-          content: SingleChildScrollView(
-            child: ListBody(
-              children: <Widget>[
-                Text('Mevcut Bütçe: ${worker.budget.toStringAsFixed(2)} ₺'),
-                const SizedBox(height: 16),
-                // Tutar Alanı
-                TextField(
-                  controller: _amountController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  decoration: InputDecoration(
-                    labelText: 'Tutar (₺)',
-                    prefixIcon: Icon(
-                      isAddition ? Icons.add : Icons.remove,
-                      color: isAddition ? Colors.green : Colors.red,
-                    ),
-                    border: const OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _descriptionController,
-                  decoration: const InputDecoration(
-                    labelText: 'Açıklama / Sebep (Zorunlu)',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('İptal'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            ElevatedButton(
-              child: Text(action),
-              onPressed: () {
-                final double? amount = double.tryParse(
-                  _amountController.text.replaceAll(',', '.'),
-                );
-                final String customDescription = _descriptionController.text
-                    .trim(); // DEĞER ALINDI
-
-                if (amount != null &&
-                    amount > 0 &&
-                    customDescription.isNotEmpty) {
-                  // KONTROL EKLENDİ
-                  double newBudget;
-                  String descriptionToSend;
-
-                  if (isAddition) {
-                    newBudget = worker.budget + amount;
-                  } else {
-                    newBudget = worker.budget - amount;
-                  }
-
-                  descriptionToSend =
-                      customDescription; // Nihai açıklamayı kullanıcının girdiği metin olarak alıyoruz
-
-                  Navigator.of(context).pop();
-                  _updateBudgetOnBackend(
-                    worker.id,
-                    newBudget,
-                    descriptionToSend,
-                  ); // GÖNDERİLİYOR
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Lütfen geçerli bir tutar ve açıklama girin.',
-                      ),
-                    ),
-                  );
-                }
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // --- Backend'e Bütçe Güncelleme (POST) Fonksiyonu ---
-  Future<void> _updateBudgetOnBackend(
+  // --- İş Mantığı (Güncelleme) ---
+  Future<void> _handleBudgetUpdate(
     String workerId,
     double newBudget,
     String description,
   ) async {
-    const String updateUrl = '${Api.baseUrl}/api/workers/update_budget/';
-
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Bütçe güncelleme isteği gönderiliyor: $description'),
+        content: Text('$description...'),
+        backgroundColor: _primaryColor.withOpacity(0.8),
+        duration: const Duration(milliseconds: 800),
       ),
     );
 
-    try {
-      final response = await http.post(
-        Uri.parse(updateUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'worker_id': workerId,
-          'budget': newBudget,
-          'description': description, // API'nizin bu alanı işlemesi gerekir
-        }),
+    final result = await _service.updateBudget(
+      workerId: workerId,
+      newBudget: newBudget,
+      description: description,
+    );
+
+    if (!mounted) return;
+
+    if (result['success']) {
+      _refreshList();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('İşlem Başarılı'),
+          backgroundColor: Colors.green,
+        ),
       );
-
-      if (response.statusCode == 200) {
-        // 1. ASENKRON İŞLEMİ setState DIŞINA TAŞIYIN
-        _workersFuture = _fetchWorkers();
-
-        // 2. WIDGET'I YENİDEN ÇİZMEK İÇİN SENKRON setState() çağrısı yapın.
-        setState(() {});
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Bütçe başarıyla güncellendi.')),
-        );
-      } else {
-        final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
-        final errorMessage =
-            errorBody['error'] ??
-            'Bilinmeyen API hatası. Status: ${response.statusCode}';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Güncelleme Başarısız: $errorMessage')),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Ağ Hatası: ${e.toString()}')));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message']), backgroundColor: Colors.red),
+      );
     }
   }
 
-  // --- Personel Listesini Oluşturan Widget ---
-  Widget _buildWorkerList() {
-    return FutureBuilder<List<Worker>>(
-      future: _workersFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (snapshot.hasError) {
-          return Center(child: Text('Veri Yükleme Hatası: ${snapshot.error}'));
-        } else if (snapshot.hasData && snapshot.data!.isNotEmpty) {
-          return ListView(
-            children: snapshot.data!
-                .map(
-                  (worker) => _BudgetCard(
-                    worker: worker,
-                    onEdit: _editBudget, // Mutlak Değer Düzenle
-                    onAdd: (w) => _showBudgetTransactionModal(
-                      w,
-                      isAddition: true,
-                    ), // Ekle
-                    onSubtract: (w) => _showBudgetTransactionModal(
-                      w,
-                      isAddition: false,
-                    ), // Çıkar
-                    onTap: _showBudgetHistoryModal, // Geçmişi Gör
-                  ),
-                )
-                .toList(),
-          );
-        } else {
-          return const Center(
-            child: Text('Bütçe bilgisi olan personel bulunamadı.'),
-          );
-        }
-      },
+  // --- Modallar (Tasarım Giydirilmiş) ---
+  void _editBudget(Worker worker) {
+    final _budgetController = TextEditingController(
+      text: worker.budget.toStringAsFixed(2),
+    );
+    final _descController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          '${worker.name} - Mutlak Düzenleme',
+          style: TextStyle(color: _primaryColor),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _budgetController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: InputDecoration(
+                labelText: 'Yeni Bütçe (₺)',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: _primaryColor, width: 2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _descController,
+              decoration: InputDecoration(
+                labelText: 'Açıklama (Zorunlu)',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: _primaryColor, width: 2),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('İptal', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _primaryColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () {
+              final val = double.tryParse(
+                _budgetController.text.replaceAll(',', '.'),
+              );
+              final desc = _descController.text.trim();
+              if (val != null && val >= 0 && desc.isNotEmpty) {
+                Navigator.pop(context);
+                _handleBudgetUpdate(worker.id, val, 'Mutlak Değer: $desc');
+              }
+            },
+            child: const Text('Kaydet', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTransactionModal(Worker worker, {required bool isAddition}) {
+    final _amountController = TextEditingController();
+    final _descController = TextEditingController();
+    final action = isAddition ? 'Ekleme' : 'Çıkarma';
+    final actionColor = isAddition ? Colors.green : Colors.red;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          '${worker.name} - Bütçe $action',
+          style: TextStyle(color: actionColor, fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _amountController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: InputDecoration(
+                labelText: 'Tutar (₺)',
+                prefixIcon: Icon(
+                  isAddition ? Icons.add : Icons.remove,
+                  color: actionColor,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: actionColor, width: 2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _descController,
+              decoration: InputDecoration(
+                labelText: 'Açıklama (Zorunlu)',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: actionColor, width: 2),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('İptal', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: actionColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () {
+              final amount = double.tryParse(
+                _amountController.text.replaceAll(',', '.'),
+              );
+              final desc = _descController.text.trim();
+              if (amount != null && amount > 0 && desc.isNotEmpty) {
+                Navigator.pop(context);
+                final newBudget = isAddition
+                    ? worker.budget + amount
+                    : worker.budget - amount;
+                _handleBudgetUpdate(worker.id, newBudget, desc);
+              }
+            },
+            child: Text(action, style: const TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showBudgetHistoryModal(Worker worker) {
+    const String adminAccessToken = 'YOUR_ADMIN_ACCESS_TOKEN';
+    showDialog(
+      context: context,
+      builder: (context) => BudgetHistoryModal(
+        workerId: int.parse(worker.id),
+        workerName: worker.name,
+        accessToken: adminAccessToken,
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Bütçe Yönetimi')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Personel Bütçe Durumu (Geçmiş için karta dokunun)',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            Expanded(child: _buildWorkerList()),
-          ],
+      backgroundColor: Colors.grey[100], // Admin Paneli arkaplanı
+      appBar: AppBar(
+        title: Text(
+          'Bütçe Yönetimi',
+          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: false,
+        iconTheme: const IconThemeData(color: Colors.black87),
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Personel Listesi',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Expanded(
+                child: FutureBuilder<List<Worker>>(
+                  future: _workersFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return Center(
+                        child: CircularProgressIndicator(color: _primaryColor),
+                      );
+                    } else if (snapshot.hasError) {
+                      return Center(child: Text('Hata: ${snapshot.error}'));
+                    } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                      return const Center(child: Text('Kayıtlı personel yok.'));
+                    }
+
+                    return ListView.separated(
+                      padding: const EdgeInsets.only(bottom: 20),
+                      itemCount: snapshot.data!.length,
+                      separatorBuilder: (ctx, index) =>
+                          const SizedBox(height: 16),
+                      itemBuilder: (context, index) {
+                        final worker = snapshot.data![index];
+                        return _WorkerBudgetCard(
+                          worker: worker,
+                          primaryColor: _primaryColor,
+                          onEdit: _editBudget,
+                          onAdd: (w) =>
+                              _showTransactionModal(w, isAddition: true),
+                          onSubtract: (w) =>
+                              _showTransactionModal(w, isAddition: false),
+                          onTap: _showBudgetHistoryModal,
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-// --- Bütçe Kartı Widget'ı ---
-class _BudgetCard extends StatelessWidget {
+// --- Admin Paneli Tarzı Kart Tasarımı ---
+class _WorkerBudgetCard extends StatelessWidget {
   final Worker worker;
-  final ValueChanged<Worker> onEdit; // Mutlak değer düzenleme
-  final ValueChanged<Worker> onAdd; // Ekleme
-  final ValueChanged<Worker> onSubtract; // Çıkarma
-  final ValueChanged<Worker> onTap; // Geçmişi görme
+  final Color primaryColor;
+  final ValueChanged<Worker> onEdit;
+  final ValueChanged<Worker> onAdd;
+  final ValueChanged<Worker> onSubtract;
+  final ValueChanged<Worker> onTap;
 
-  const _BudgetCard({
+  const _WorkerBudgetCard({
     required this.worker,
+    required this.primaryColor,
     required this.onEdit,
     required this.onAdd,
     required this.onSubtract,
@@ -415,67 +333,177 @@ class _BudgetCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        onTap: () => onTap(worker), // Kart tıklaması ile geçmişi açar
-        leading: const Icon(
-          Icons.account_balance_wallet_outlined,
-          size: 40,
-          color: Colors.blueGrey,
-        ),
-        title: Text(
-          worker.name,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Rol: ${worker.role} | Tel: ${worker.phone}'),
-            const SizedBox(height: 4),
-            // Bütçe Değerini Kartın Altında Vurgula
-            Row(
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(
+          20,
+        ), // Admin paneliyle aynı yuvarlaklık
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => onTap(worker),
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
               children: [
-                const Text('Mevcut Bütçe:', style: TextStyle(fontSize: 14)),
-                const SizedBox(width: 4),
-                Text(
-                  '${worker.budget.toStringAsFixed(2)} ₺',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: worker.budget < 1000
-                        ? Colors.red
-                        : Colors.green.shade700,
-                  ),
+                // Üst Kısım: İkon, İsim, Rol
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: primaryColor.withOpacity(
+                          0.1,
+                        ), // Temanın açık tonu
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.account_balance_wallet_outlined,
+                        color: primaryColor,
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            worker.name,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: worker.statusColor,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                worker.role,
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16.0),
+                  child: Divider(height: 1),
+                ),
+
+                // Alt Kısım: Bütçe ve Butonlar
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Bütçe Değeri
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Mevcut Bütçe",
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                        Text(
+                          '${worker.budget.toStringAsFixed(2)} ₺',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            color: worker.budget < 0
+                                ? Colors.red
+                                : primaryColor,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // Butonlar
+                    Row(
+                      children: [
+                        _MiniActionButton(
+                          icon: Icons.remove,
+                          color: Colors.red,
+                          onTap: () => onSubtract(worker),
+                        ),
+                        const SizedBox(width: 10),
+                        _MiniActionButton(
+                          icon: Icons.add,
+                          color: Colors.green,
+                          onTap: () => onAdd(worker),
+                        ),
+                        const SizedBox(width: 10),
+                        _MiniActionButton(
+                          icon: Icons.edit,
+                          color: primaryColor,
+                          isOutlined: true,
+                          onTap: () => onEdit(worker),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
+          ),
         ),
+      ),
+    );
+  }
+}
 
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Bütçe Ekle Butonu
-            IconButton(
-              icon: const Icon(Icons.add_circle_outline, color: Colors.green),
-              tooltip: 'Bütçeye Ekle',
-              onPressed: () => onAdd(worker),
-            ),
-            // Bütçeden Çıkar Butonu
-            IconButton(
-              icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
-              tooltip: 'Bütçeden Çıkar',
-              onPressed: () => onSubtract(worker),
-            ),
-            // Mutlak Değerle Düzenle Butonu
-            IconButton(
-              icon: const Icon(Icons.edit, color: Colors.blue),
-              tooltip: 'Mutlak Değerle Düzenle',
-              onPressed: () => onEdit(worker),
-            ),
-          ],
+// Yardımcı Buton Widget'ı
+class _MiniActionButton extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+  final bool isOutlined;
+
+  const _MiniActionButton({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+    this.isOutlined = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: isOutlined ? Colors.transparent : color.withOpacity(0.1),
+          border: isOutlined ? Border.all(color: color.withOpacity(0.5)) : null,
+          borderRadius: BorderRadius.circular(10),
         ),
+        child: Icon(icon, size: 20, color: color),
       ),
     );
   }

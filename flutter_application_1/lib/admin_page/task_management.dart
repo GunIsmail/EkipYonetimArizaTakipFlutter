@@ -162,7 +162,7 @@ class _TaskManagementPageState extends State<TaskManagementPage>
   }
 }
 
-// --- İş Emri Kartı Widget'ı (Silme Butonu Eklendi) ---
+// --- İş Emri Kartı Widgetı  ---
 class TaskCard extends StatelessWidget {
   final WorkOrder task;
   final ValueChanged<int> onDelete; // Silme callback'i

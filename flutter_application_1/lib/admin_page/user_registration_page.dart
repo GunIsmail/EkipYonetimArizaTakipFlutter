@@ -30,8 +30,10 @@ class _RegisterPageState extends State<RegisterPage> {
     'Teknisyen Yardımcısı',
     'Yazılımcı',
     'Yönetici Asistanı',
+    "Frontendci",
+    "cu",
   ];
-  String? _selectedRole = _adminLabel; // varsayılan: Admin (istersen null yap)
+  String? _selectedRole = _adminLabel;
 
   @override
   void dispose() {
@@ -156,7 +158,7 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Kayıt Ol')),
+      appBar: AppBar(title: const Text('Kayıt Edilecek Personel Bilgisi')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

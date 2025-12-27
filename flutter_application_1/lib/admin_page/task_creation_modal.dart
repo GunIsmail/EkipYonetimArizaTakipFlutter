@@ -1,10 +1,5 @@
-// lib/admin_page/task_creation_modal.dart
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import '../Definitions.dart';
-
-// ❌ TaskCategory sınıfı artık kullanılmadığı için kaldırılmıştır.
+import '../services/task_service.dart';
 
 class TaskCreationModal extends StatefulWidget {
   final VoidCallback onTaskCreated;
@@ -16,19 +11,13 @@ class TaskCreationModal extends StatefulWidget {
 }
 
 class _TaskCreationModalState extends State<TaskCreationModal> {
+  final TaskService _taskService = TaskService();
+
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _addressController = TextEditingController();
   final _phoneController = TextEditingController();
   final _descriptionController = TextEditingController();
-
-  // Kategori Future'ı kaldırıldı.
-
-  @override
-  void initState() {
-    super.initState();
-    // Kategori Future'ı kaldırıldı.
-  }
 
   @override
   void dispose() {
@@ -39,48 +28,37 @@ class _TaskCreationModalState extends State<TaskCreationModal> {
     super.dispose();
   }
 
-  Future<void> _createTask() async {
+  Future<void> _handleCreateTask() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Gönderilecek veriyi hazırla
-    final Map<String, dynamic> bodyData = {
-      'title': _titleController.text.trim(),
-      'description': _descriptionController.text.trim(),
-      'customer_address': _addressController.text.trim(),
-      'customer_phone': _phoneController.text.trim(),
-    };
+    // Servisi çağır task_service.dart cagırılacak.
+    final result = await _taskService.createTask(
+      title: _titleController.text.trim(),
+      description: _descriptionController.text.trim(),
+      address: _addressController.text.trim(),
+      phone: _phoneController.text.trim(),
+    );
 
-    final uri = Uri.parse('${Api.baseUrl}/api/tasks/create/');
+    if (!mounted) return;
 
-    try {
-      final response = await http.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(bodyData),
+    if (result['success'] == true) {
+      // Başarılı
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message']),
+          backgroundColor: Colors.green,
+        ),
       );
-
-      if (response.statusCode == 201) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Yeni iş emri başarıyla oluşturuldu.')),
-        );
-        Navigator.of(context).pop();
-        widget.onTaskCreated();
-      } else {
-        if (!mounted) return;
-        final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
-        final errorMessage =
-            errorBody['error'] ?? errorBody['detail'] ?? jsonEncode(errorBody);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Kayıt Başarısız: $errorMessage')),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Ağ Hatası: $e')));
+      Navigator.of(context).pop();
+      widget.onTaskCreated(); // Listeyi yenilemesi için ana sayfaya haber ver
+    } else {
+      // Hata
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Kayıt Başarısız: ${result['message']}'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     }
   }
 
@@ -97,41 +75,51 @@ class _TaskCreationModalState extends State<TaskCreationModal> {
               // 1. Başlık
               TextFormField(
                 controller: _titleController,
-                decoration: const InputDecoration(labelText: 'Başlık / Özet'),
+                decoration: const InputDecoration(
+                  labelText: 'Başlık / Özet',
+                  prefixIcon: Icon(Icons.title),
+                  border: OutlineInputBorder(),
+                ),
                 validator: (v) => v!.isEmpty ? 'Başlık zorunludur' : null,
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
 
               // 2. Açıklama
               TextFormField(
                 controller: _descriptionController,
                 decoration: const InputDecoration(
                   labelText: 'Arıza Detayı / Tanım',
+                  prefixIcon: Icon(Icons.description),
+                  border: OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.multiline,
                 maxLines: 3,
                 validator: (v) => v!.isEmpty ? 'Açıklama zorunludur' : null,
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
 
               // 3. Müşteri Adresi
               TextFormField(
                 controller: _addressController,
-                decoration: const InputDecoration(labelText: 'Müşteri Adresi'),
+                decoration: const InputDecoration(
+                  labelText: 'Müşteri Adresi',
+                  prefixIcon: Icon(Icons.location_on),
+                  border: OutlineInputBorder(),
+                ),
                 validator: (v) => v!.isEmpty ? 'Adres zorunludur' : null,
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
 
               // 4. Müşteri Telefonu
               TextFormField(
                 controller: _phoneController,
                 decoration: const InputDecoration(
                   labelText: 'Müşteri Telefonu',
+                  prefixIcon: Icon(Icons.phone),
+                  border: OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.phone,
               ),
-              const SizedBox(height: 20),
-
               const SizedBox(height: 10),
             ],
           ),
@@ -140,10 +128,14 @@ class _TaskCreationModalState extends State<TaskCreationModal> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('İptal'),
+          child: const Text('İptal', style: TextStyle(color: Colors.grey)),
         ),
         ElevatedButton(
-          onPressed: _createTask,
+          onPressed: _handleCreateTask,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF6C63FF),
+            foregroundColor: Colors.white,
+          ),
           child: const Text('Kaydet ve Yönlendir'),
         ),
       ],

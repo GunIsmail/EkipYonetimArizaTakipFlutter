@@ -1,90 +1,8 @@
 // lib/admin_page/budget_history_modal.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'budget_transaction_model.dart';
-import '../Definitions.dart'; // Api sınıfının yolu
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'dart:async';
-
-// --- Bütçe Geçmişi Veri Çekme Fonksiyonu ---
-Future<List<BudgetTransaction>> _fetchHistory(
-  int workerId,
-  String accessToken,
-) async {
-  // 💡 ÖNEMLİ: Bu URL'in doğru workerId ile çalışıp çalışmadığını kontrol edin
-  final uri = Uri.parse(Api.getWorkerBudgetHistoryUrl(workerId));
-
-  final List<Map<String, dynamic>> simulatedData = workerId == 1
-      ? [
-          {
-            'id': 99,
-            'amount': 1500.0,
-            'signed_amount': '+1500.00',
-            'type_display': 'Ekleme',
-            'timestamp': '2025-11-05T10:30:00Z',
-            'description': 'Başlangıç bütçesi',
-            'conducted_by': 'Admin',
-          },
-          {
-            'id': 100,
-            'amount': 250.0,
-            'signed_amount': '-250.00',
-            'type_display': 'Çıkarma',
-            'timestamp': '2025-11-06T09:00:00Z',
-            'description': 'Malzeme Alımı',
-            'conducted_by': 'Admin',
-          },
-        ]
-      : [
-          {
-            'id': 200,
-            'amount': 500.0,
-            'signed_amount': '+500.00',
-            'type_display': 'Ekleme',
-            'timestamp': '2025-10-01T15:00:00Z',
-            'description': 'İlk Atama',
-            'conducted_by': 'Süper Yönetici',
-          },
-          {
-            'id': 201,
-            'amount': 50.0,
-            'signed_amount': '-50.00',
-            'type_display': 'Çıkarma',
-            'timestamp': '2025-10-15T12:00:00Z',
-            'description': 'Ulaşım Gideri',
-            'conducted_by': 'Yönetici A',
-          },
-        ];
-
-  try {
-    final response = await http.get(
-      uri,
-      headers: {
-        'Content-Type': 'application/json',
-        // 'Authorization': 'Bearer $accessToken',
-      },
-    );
-
-    if (response.statusCode == 200) {
-      final List<dynamic> jsonList = jsonDecode(
-        utf8.decode(response.bodyBytes),
-      );
-      return jsonList.map((json) => BudgetTransaction.fromJson(json)).toList();
-    } else {
-      // Hata durumunda, workerId'ye göre farklı simülasyon verisi döndürerek testi kolaylaştırırız.
-      return simulatedData
-          .map((json) => BudgetTransaction.fromJson(json))
-          .toList();
-    }
-  } catch (e) {
-    // Ağ hatası durumunda, workerId'ye göre farklı simülasyon verisi döndür
-    print('Ağ Hatası: $e');
-    return simulatedData
-        .map((json) => BudgetTransaction.fromJson(json))
-        .toList();
-  }
-}
+import '../services/admin_budget_service.dart';
+import '../services/budget_transaction_model.dart';
 
 class BudgetHistoryModal extends StatefulWidget {
   final int workerId;
@@ -104,40 +22,71 @@ class BudgetHistoryModal extends StatefulWidget {
 
 class _BudgetHistoryModalState extends State<BudgetHistoryModal> {
   late Future<List<BudgetTransaction>> _historyFuture;
+  final AdminBudgetService _budgetService = AdminBudgetService();
 
   @override
   void initState() {
     super.initState();
-    _historyFuture = _fetchHistory(widget.workerId, widget.accessToken);
+    // Servis üzerinden veriyi çekiyoruz
+    _historyFuture = _budgetService.fetchHistory(
+      widget.workerId,
+      widget.accessToken,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      elevation: 5,
+      backgroundColor: Colors.white,
       child: Container(
-        padding: const EdgeInsets.all(16),
-        height: MediaQuery.of(context).size.height * 0.7,
+        // Yüksekliği ekranın %75'i yaptık
+        height: MediaQuery.of(context).size.height * 0.75,
         width: MediaQuery.of(context).size.width * 0.9,
+        padding: const EdgeInsets.all(
+          0,
+        ), // Padding'i kaldırdık, içeride vereceğiz
         child: Column(
           children: [
-            Text(
-              '${widget.workerName} Bütçe Geçmişi (ID: ${widget.workerId})', // ID eklendi
-              style: Theme.of(context).textTheme.titleLarge,
-              textAlign: TextAlign.center,
+            // --- Modal Başlığı ---
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  Text(
+                    widget.workerName,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Bütçe Geçmişi (ID: ${widget.workerId})',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                  ),
+                ],
+              ),
             ),
-            const Divider(),
 
-            // Başlık Çubuğu
-            const Padding(
-              padding: EdgeInsets.only(bottom: 8.0, top: 4.0),
-              child: Row(
+            // --- Tablo Başlık Satırı (Renkli Arkaplan) ---
+            Container(
+              color: Colors.grey[100], // Hafif gri arka plan
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 12.0,
+              ),
+              child: const Row(
                 children: [
                   Expanded(
                     flex: 3,
                     child: Text(
-                      'Tarih ve Saat / Yapan',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                      'Tarih / İşlemi Yapan',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
                     ),
                   ),
                   Expanded(
@@ -145,7 +94,10 @@ class _BudgetHistoryModalState extends State<BudgetHistoryModal> {
                     child: Text(
                       'Tutar',
                       textAlign: TextAlign.right,
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
                     ),
                   ),
                 ],
@@ -153,6 +105,7 @@ class _BudgetHistoryModalState extends State<BudgetHistoryModal> {
             ),
             const Divider(height: 1, thickness: 1),
 
+            // --- Liste Alanı ---
             Expanded(
               child: FutureBuilder<List<BudgetTransaction>>(
                 future: _historyFuture,
@@ -161,63 +114,100 @@ class _BudgetHistoryModalState extends State<BudgetHistoryModal> {
                     return const Center(child: CircularProgressIndicator());
                   } else if (snapshot.hasError) {
                     return Center(
-                      child: Text(
-                        'Hata: ${snapshot.error.toString()}',
-                        textAlign: TextAlign.center,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Text(
+                          'Hata: ${snapshot.error}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.red),
+                        ),
                       ),
                     );
                   } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return const Center(
-                      child: Text(
-                        'Bu personel için bütçe hareketi bulunamadı.',
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.history,
+                            size: 48,
+                            color: Colors.grey[300],
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            'Kayıt bulunamadı.',
+                            style: TextStyle(color: Colors.grey[600]),
+                          ),
+                        ],
                       ),
                     );
                   }
 
                   final history = snapshot.data!;
-                  return ListView.builder(
+                  return ListView.separated(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                     itemCount: history.length,
+                    separatorBuilder: (context, index) =>
+                        const Divider(height: 1),
                     itemBuilder: (context, index) {
                       final tx = history[index];
-                      // intl paketinden gelen DateFormat kullanılır
+                      // YANLIŞ OLAN:
+                      // DOĞRU OLAN (String'i DateTime'a çeviriyoruz):
                       final formattedDate = DateFormat(
                         'dd.MM.yyyy HH:mm',
-                      ).format(tx.timestamp);
+                      ).format(DateTime.parse(tx.timestamp));
 
-                      return Column(
-                        children: [
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Row(
-                              children: [
-                                Expanded(
-                                  flex: 3,
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        formattedDate,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                      Text(
-                                        'Yönetici: ${tx.conductedBy}',
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey,
-                                        ),
-                                      ),
-                                    ],
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0,
+                          vertical: 12.0,
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Sol Taraf: Tarih ve Açıklama
+                            Expanded(
+                              flex: 3,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    formattedDate,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                    ),
                                   ),
-                                ),
-                                Expanded(
-                                  flex: 2,
-                                  child: Text(
-                                    // Signed Amount kullanılıyor
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Yönetici: ${tx.conductedBy}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                  if (tx.description.isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      tx.description,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.grey[800],
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+
+                            Expanded(
+                              flex: 2,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
                                     '${tx.signedAmount} ₺',
-                                    textAlign: TextAlign.right,
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
@@ -226,31 +216,46 @@ class _BudgetHistoryModalState extends State<BudgetHistoryModal> {
                                           : Colors.red.shade700,
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            subtitle: tx.description.isNotEmpty
-                                ? Padding(
-                                    padding: const EdgeInsets.only(top: 4.0),
-                                    child: Text(
-                                      'Açıklama: ${tx.description}',
-                                      style: const TextStyle(fontSize: 13),
+                                  Text(
+                                    tx.isAddition ? "Ekleme" : "Çıkarma",
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: tx.isAddition
+                                          ? Colors.green.shade300
+                                          : Colors.red.shade300,
                                     ),
-                                  )
-                                : null,
-                          ),
-                          const Divider(height: 1),
-                        ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       );
                     },
                   );
                 },
               ),
             ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Kapat'),
+
+            // --- Alt Buton ---
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors
+                        .blueAccent, // Tema renginize göre değiştirebilirsiniz
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Kapat', style: TextStyle(fontSize: 16)),
+                ),
+              ),
             ),
           ],
         ),

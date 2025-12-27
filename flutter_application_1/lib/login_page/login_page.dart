@@ -1,13 +1,9 @@
 // lib/login_page/login_page.dart
-
 import 'package:flutter/material.dart';
-// import 'dart:nativewrappers/_internal/vm/lib/internal_patch.dart'; // Bu satırı silin (Hata veriyor)
-import 'package:flutter_application_1/Definitions.dart';
-
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import '../services/login_service.dart';
+// Sayfa importları
 import '../admin_page/admin_panel_page.dart';
-import '../employee_page/employeePage.dart'; // EmployeePage'in yolunun bu olduğundan emin olun
+import '../employee_page/employeePage.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -19,7 +15,10 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final LoginService _loginService = LoginService();
+
   bool _isLoading = false;
+  bool _obscureText = true;
 
   @override
   void dispose() {
@@ -28,97 +27,47 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  // 1. API'ye istek atıp cevabı bekleyen ve gerekli verileri döndüren fonksiyon (GÜNCELLENDİ)
-  Future<Map<String, dynamic>?> _loginUserAndGetRole(
-    String username,
-    String password,
-  ) async {
-    // 🎯 setState'i sadece burada kontrol ediyoruz
-    if (!mounted) return null;
-    setState(() {
-      _isLoading = true; // Yüklenme animasyonunu başlat
-    });
-
-    try {
-      final response = await http.post(
-        Uri.parse(Api.login),
-        headers: {'Content-Type': 'application/json; charset=UTF-8'},
-        body: jsonEncode({'username': username, 'password': password}),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        print('Giriş Başarılı! Admin mi: ${data['is_staff']}');
-
-        return {
-          'is_admin': data['is_staff'] as bool? ?? false,
-          'user_id': data['id'] as int?, // Backend'den gelen ID
-          'username': data['username'] as String? ?? username, // Kullanıcı adı
-        };
-      } else {
-        final errorData = jsonDecode(response.body);
-        if (!mounted) return null;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Hata: ${errorData['error'] ?? response.statusCode}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return null;
-      }
-    } catch (e) {
-      if (!mounted) return null;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Sunucuya bağlanılamadı! ${e}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return null; // Hata durumunda null döndür
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
   void _handleLogin() async {
     final username = _usernameController.text;
     final password = _passwordController.text;
 
     if (username.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lütfen kullanıcı adı ve şifreyi girin.')),
+        const SnackBar(
+          content: Text('Lütfen kullanıcı adı ve şifreyi girin.'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.orange,
+        ),
       );
       return;
     }
 
-    final Map<String, dynamic>? loginData = await _loginUserAndGetRole(
-      username,
-      password,
-    );
+    setState(() {
+      _isLoading = true;
+    });
 
+    //  Servise git ve cevabı bekle
+    final result = await _loginService.login(username, password);
+
+    // Context hala geçerli mi kontrol et (Sayfa kapandıysa işlem yapma)
     if (!mounted) return;
 
-    if (loginData != null) {
-      final bool isAdmin = loginData['is_admin'] as bool;
-      final int? userId = loginData['user_id'] as int?;
+    // 4. Yükleniyor durumunu kapat
+    setState(() {
+      _isLoading = false;
+    });
 
-      if (!isAdmin && userId == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Çalışan ID\'si alınamadı. Giriş başarısız.'),
-          ),
-        );
-        return;
-      }
+    // 5. Sonuca göre işlem yap
+    if (result['success'] == true) {
+      // --- BAŞARILI ---
+      final bool isAdmin = result['is_admin'];
+      final int? userId = result['user_id'];
+      final String finalUsername = result['username'];
+
+      print("Giriş Başarılı! Admin mi: $isAdmin, ID: $userId");
 
       // Yönlendirme
       if (isAdmin) {
-        // Admin Sayfasına Yönlendir
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const AdminPanelPage()),
         );
@@ -126,45 +75,188 @@ class _LoginPageState extends State<LoginPage> {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (context) =>
-                EmployeePage(workerId: userId!, username: username),
+                EmployeePage(workerId: userId!, username: finalUsername),
           ),
         );
       }
+    } else {
+      // --- HATA ---
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message'] ?? 'Bir hata oluştu'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    const Color primaryColor = Color(0xFF6C63FF);
+    const Color secondaryColor = Color(0xFF4B45B2);
+
     return Scaffold(
-      appBar: AppBar(title: const Text("Giriş Yap")),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TextField(
-              controller: _usernameController,
-              decoration: const InputDecoration(labelText: 'Kullanıcı Adı'),
-              enabled: !_isLoading,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: 'Şifre'),
-              enabled: !_isLoading,
-            ),
-            const SizedBox(height: 32),
-            if (_isLoading)
-              const CircularProgressIndicator()
-            else
-              ElevatedButton(
-                onPressed:
-                    _handleLogin, // Yönlendirme mantığını çağıran fonksiyon
-                child: const Text('Giriş Yap'),
+      backgroundColor: Colors.white,
+      body: Stack(
+        children: [
+          // Arka Plan Dekoru
+          Container(
+            height: MediaQuery.of(context).size.height * 0.4,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [primaryColor, secondaryColor],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-          ],
-        ),
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(50),
+                bottomRight: Radius.circular(50),
+              ),
+            ),
+          ),
+
+          // İçerik Formu
+          Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.lock_person_rounded,
+                      size: 80,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    "Hoş Geldiniz",
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+
+                  // Kart
+                  Card(
+                    elevation: 8,
+                    shadowColor: Colors.black26,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 10),
+                          TextField(
+                            controller: _usernameController,
+                            enabled: !_isLoading,
+                            decoration: InputDecoration(
+                              labelText: 'Kullanıcı Adı',
+                              prefixIcon: const Icon(
+                                Icons.person_outline,
+                                color: primaryColor,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              filled: true,
+                              fillColor: Colors.grey[100],
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 16,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          TextField(
+                            controller: _passwordController,
+                            obscureText: _obscureText,
+                            enabled: !_isLoading,
+                            decoration: InputDecoration(
+                              labelText: 'Şifre',
+                              prefixIcon: const Icon(
+                                Icons.lock_outline,
+                                color: primaryColor,
+                              ),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscureText
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                  color: Colors.grey,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _obscureText = !_obscureText;
+                                  });
+                                },
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              filled: true,
+                              fillColor: Colors.grey[100],
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 16,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 30),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 50,
+                            child: _isLoading
+                                ? const Center(
+                                    child: CircularProgressIndicator(
+                                      color: primaryColor,
+                                    ),
+                                  )
+                                : ElevatedButton(
+                                    onPressed: _handleLogin,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: primaryColor,
+                                      foregroundColor: Colors.white,
+                                      elevation: 2,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'Giriş Yap',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    "Personel Yönetim Sistemi v1.0",
+                    style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
