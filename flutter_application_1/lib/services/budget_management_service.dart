@@ -2,7 +2,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import '../Definitions.dart'; // Api sınıfının yolu
+import '../Definitions.dart';
 
 // --- Worker Modeli ---
 class Worker {
@@ -60,8 +60,7 @@ class WorkerBudgetService {
 
   // Personel Listesini Getir
   Future<List<Worker>> fetchWorkers() async {
-    final List<Map<String, dynamic>> simulatedData =
-        []; // Hata durumunda boş döner veya mock data ekleyebilirsiniz.
+    final List<Map<String, dynamic>> simulatedData = [];
 
     try {
       final response = await http.get(Uri.parse(Api.workers));

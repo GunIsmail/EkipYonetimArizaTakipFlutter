@@ -1,3 +1,4 @@
+// lib/services/employee_service.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../Definitions.dart';
@@ -12,6 +13,7 @@ class EmployeeService {
 
       if (response.statusCode == 200) {
         List<dynamic> jsonList = jsonDecode(utf8.decode(response.bodyBytes));
+
         // ID eşleşmesi string/int dönüşümüne dikkat edilerek yapılıyor
         final workerData = jsonList.firstWhere(
           (worker) => worker['id'].toString() == workerId.toString(),
@@ -40,11 +42,14 @@ class EmployeeService {
     }
   }
 
-  // 3. İş Emirlerini Listele
+  // 3. İş Emirlerini Listele (HATA DÜZELTİLDİ: status -> statusFilter)
   Future<List<WorkOrder>> fetchTasks(int workerId, String statusFilter) async {
+    // Hem Statüye hem de İşçi ID'sine göre filtreleme yapıyoruz.
+    // Böylece başkasının işini görmez.
     final uri = Uri.parse(
-      '${Api.baseUrl}/api/tasks/?assigned_worker=$workerId&status=$statusFilter',
+      '${Api.baseUrl}/api/tasks/?status=$statusFilter&worker_id=$workerId',
     );
+
     try {
       final response = await http.get(uri);
       if (response.statusCode == 200) {
@@ -57,7 +62,7 @@ class EmployeeService {
     return [];
   }
 
-  // 4. İş Talep Et
+  // 4. İş Talep Et (Opsiyonel: Eğer havuzdan iş alacaksa)
   Future<int> requestTask(int taskId, int workerId) async {
     const requestUrl = '${Api.baseUrl}/api/tasks/request_assignment/';
     try {
@@ -72,9 +77,8 @@ class EmployeeService {
     }
   }
 
+  // 5. Bütçe Geçmişini Getir
   Future<List<BudgetTransaction>> fetchBudgetHistory(int workerId) async {
-    // Backend URL yapına göre burayı düzenle.
-    // Önceki Python koduna göre endpoint: /api/workers/<id>/budget-history/
     final uri = Uri.parse(
       '${Api.baseUrl}/api/workers/$workerId/budget-history/',
     );
@@ -95,6 +99,7 @@ class EmployeeService {
     }
   }
 
+  // 6. İşi Tamamla ve Bütçe Onayı İste
   Future<bool> completeTaskWithBudget(
     int taskId,
     int workerId,
@@ -110,7 +115,7 @@ class EmployeeService {
         uri,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'task_id': taskId,
+          'work_order_id': taskId,
           'worker_id': workerId,
           'description': description,
           'amount': expenseAmount,

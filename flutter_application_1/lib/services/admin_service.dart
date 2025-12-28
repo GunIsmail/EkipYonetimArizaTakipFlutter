@@ -26,16 +26,15 @@ class AdminService {
     );
   }
 
-  // --- KİŞİSEL VERİ ÇEKME FONKSİYONU ---
+  // ---  VERİ ÇEKME FONKSİYONU ---
   Future<Map<String, dynamic>?> fetchDashboardStats() async {
     final uri = Uri.parse(Api.workers);
 
     try {
-      // 1. Önce telefonda kayıtlı olan giriş yapmış kişinin ID'sini alalım
+      // 1. Önce telefonda kayıtlı olan giriş yapmış kişinin ID'sini alalım  -> önbellekte tutulan
       SharedPreferences prefs = await SharedPreferences.getInstance();
 
-      // Login sayfasında ID'yi 'user_id' veya 'id' olarak kaydettiğinizi varsayıyorum
-      // Eğer String olarak kaydettiyseniz getString kullanın
+      // Login sayfasında ID userid olarak cekılcek.
       int? currentAdminId = prefs.getInt('user_id');
 
       if (currentAdminId == null) {
@@ -48,15 +47,14 @@ class AdminService {
       if (response.statusCode == 200) {
         List<dynamic> users = jsonDecode(utf8.decode(response.bodyBytes));
 
-        // 2. Listeden bizim Admin'i bulalım
-        // firstWhere metodu, şartı sağlayan ilk elemanı bulur.
+        // firstWhere metodu, şartı sağlayan Admini ubl
         var adminUser = users.firstWhere(
           (user) => user['id'] == currentAdminId,
           orElse: () => null, // Bulamazsa null dönsün
         );
 
         if (adminUser != null) {
-          // 3. Bulunan Admin'in verilerini al
+          // 3. Bulunan Adminin verilerini al
           double myBudget = (adminUser['budget'] as num?)?.toDouble() ?? 0.0;
           String myName = adminUser['name'] ?? 'İsimsiz Admin';
 

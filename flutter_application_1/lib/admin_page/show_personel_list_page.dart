@@ -1,52 +1,7 @@
 // lib/admin_page/show_personel_list_page.dart
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import '../Definitions.dart';
-
-class Worker {
-  final String id;
-  final String name;
-  final String role;
-  final String status;
-  final Color statusColor;
-  final String phone;
-
-  const Worker({
-    required this.id,
-    required this.name,
-    required this.role,
-    required this.status,
-    required this.statusColor,
-    required this.phone,
-  });
-
-  factory Worker.fromJson(Map<String, dynamic> json) {
-    Color _getStatusColor(String status) {
-      switch (status.toLowerCase()) {
-        case 'aktif görevde':
-          return Colors.green;
-        case 'müsait':
-          return Colors.orange;
-        case 'izinli':
-          return Colors.grey;
-        default:
-          return Colors.blue;
-      }
-    }
-
-    final String statusText = json['statusText'] as String? ?? 'Bilinmiyor';
-
-    return Worker(
-      id: json['id']?.toString() ?? 'N/A',
-      name: json['name'] as String? ?? 'Bilinmiyor',
-      role: json['role'] as String? ?? 'Tanımlanmadı',
-      status: statusText,
-      statusColor: _getStatusColor(statusText),
-      phone: json['phone'] as String? ?? 'Yok',
-    );
-  }
-}
+import '../services/personel_service.dart';
+import 'assign_job_page.dart'; // İş atama sayfasını import ettik
 
 class ShowPersonelListPage extends StatefulWidget {
   const ShowPersonelListPage({super.key});
@@ -56,62 +11,17 @@ class ShowPersonelListPage extends StatefulWidget {
 }
 
 class _ShowPersonelListPageState extends State<ShowPersonelListPage> {
+  // Servis sınıfını başlat
+  final PersonelService _personelService = PersonelService();
   late Future<List<Worker>> _workersFuture;
-  final String _apiUrl = Api.workers; // Personel listesi API'ı
 
   @override
   void initState() {
     super.initState();
-    _workersFuture = _fetchWorkers();
+    _workersFuture = _personelService.fetchWorkers();
   }
 
-  // --- Veri Çekme Fonksiyonu ---
-  Future<List<Worker>> _fetchWorkers() async {
-    final List<Map<String, dynamic>> simulatedData = [
-      {
-        'id': 1,
-        'name': 'Ahmet Yılmaz',
-        'role': 'Usta Elektrikçi',
-        'statusText': 'Aktif Görevde',
-        'phone': '5551234567',
-      },
-      {
-        'id': 2,
-        'name': 'Mehmet Kaya',
-        'role': 'Teknisyen',
-        'statusText': 'Müsait',
-        'phone': '5559876543',
-      },
-      {
-        'id': 3,
-        'name': 'Ayşe Demir',
-        'role': 'Asistan',
-        'statusText': 'İzinli',
-        'phone': '5551112233',
-      },
-      {
-        'id': 4,
-        'name': 'Can Yücel',
-        'role': 'Stajyer',
-        'statusText': 'Müsait',
-        'phone': '5554445566',
-      },
-    ];
-
-    try {
-      final response = await http.get(Uri.parse(_apiUrl));
-      if (response.statusCode == 200) {
-        List<dynamic> jsonList = jsonDecode(utf8.decode(response.bodyBytes));
-        return jsonList.map((json) => Worker.fromJson(json)).toList();
-      } else {
-        return simulatedData.map((json) => Worker.fromJson(json)).toList();
-      }
-    } catch (e) {
-      return simulatedData.map((json) => Worker.fromJson(json)).toList();
-    }
-  }
-
-  // 🎯 GRUPLANDIRILMIŞ LİSTE OLUŞTURMA VE GÖRÜNTÜLEME FONKSİYONU
+  // GRUPLANDIRILMIŞ LİSTE OLUŞTURMA VE GÖRÜNTÜLEME
   Widget _buildGroupedWorkerList() {
     return FutureBuilder<List<Worker>>(
       future: _workersFuture,
@@ -131,18 +41,31 @@ class _ShowPersonelListPageState extends State<ShowPersonelListPage> {
           }
 
           // Grupları öncelik sırasına göre sıralama
-          final List<String> orderedKeys = [
+          // 'Meşgul' durumunu buraya ekledik.
+          List<String> orderedKeys = [
             'Müsait',
             'Aktif Görevde',
+            'Meşgul',
             'İzinli',
             'Bilinmiyor',
-          ].where((key) => groupedWorkers.containsKey(key)).toList();
+          ];
 
-          // Gruplu Listeyi döndür
+          // EĞER listede olmayan yeni bir durum gelirse (örn: Raporlu),
+          // kaybolmaması için listenin sonuna ekliyoruz:
+          final otherKeys = groupedWorkers.keys
+              .where((key) => !orderedKeys.contains(key))
+              .toList();
+          orderedKeys.addAll(otherKeys);
+
+          // Sadece verisi olan grupları filtrele
+          final finalKeys = orderedKeys
+              .where((key) => groupedWorkers.containsKey(key))
+              .toList();
+
           return ListView.builder(
-            itemCount: orderedKeys.length,
+            itemCount: finalKeys.length,
             itemBuilder: (context, index) {
-              final statusKey = orderedKeys[index];
+              final statusKey = finalKeys[index];
               final workerList = groupedWorkers[statusKey]!;
               final statusColor = workerList.first.statusColor;
 
@@ -205,6 +128,7 @@ class _ShowPersonelListPageState extends State<ShowPersonelListPage> {
   }
 }
 
+// --- CARD WIDGET ---
 class _PersonelStatusCard extends StatelessWidget {
   final Worker worker;
 
@@ -218,7 +142,7 @@ class _PersonelStatusCard extends StatelessWidget {
         leading: Icon(
           Icons.person_pin_circle_outlined,
           size: 32,
-          color: worker.statusColor, // Durum rengi
+          color: worker.statusColor,
         ),
         title: Text(
           worker.name,
@@ -240,8 +164,12 @@ class _PersonelStatusCard extends StatelessWidget {
           ),
         ),
         onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${worker.name} detayları açılacak.')),
+          // Tıklandığında İş Atama Sayfasına Git
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AssignJobPage(worker: worker),
+            ),
           );
         },
       ),
