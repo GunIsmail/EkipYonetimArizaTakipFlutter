@@ -5,11 +5,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
 import '../Definitions.dart';
-import 'package:intl/intl.dart'; // Tarih formatlama için
-
-// ⚠️ NOT: Bu uygulamada 'approval_models.dart' oluşturulmadı.
-// Bu yüzden model yapısı yerine dinamik Map kullanılmıştır.
-// Gerçek projede model sınıfları oluşturulmalıdır.
+import 'package:intl/intl.dart';
+import '../constants/app_colors.dart';
 
 class AdminApprovalPage extends StatefulWidget {
   const AdminApprovalPage({super.key});
@@ -82,7 +79,10 @@ class _AdminApprovalPageState extends State<AdminApprovalPage>
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(data['success'] ?? 'İşlem Başarılı!')),
+          SnackBar(
+            content: Text(data['success'] ?? 'İşlem Başarılı!'),
+            backgroundColor: AppColors.success,
+          ),
         );
         _refreshList(); // Liste verisini yenile
       } else {
@@ -92,13 +92,17 @@ class _AdminApprovalPageState extends State<AdminApprovalPage>
             content: Text(
               'İşlem Başarısız: ${errorBody['error'] ?? response.statusCode}',
             ),
+            backgroundColor: AppColors.error,
           ),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Ağ Hatası: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Ağ Hatası: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
     }
   }
 
@@ -113,7 +117,9 @@ class _AdminApprovalPageState extends State<AdminApprovalPage>
       future: _fetchRequests(type),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
+          );
         }
         if (snapshot.hasError) {
           return Center(child: Text('Veri yükleme hatası: ${snapshot.error}'));
@@ -135,6 +141,7 @@ class _AdminApprovalPageState extends State<AdminApprovalPage>
         return Center(
           child: Text(
             'Bekleyen ${type.replaceAll("_", " ")} talebi bulunmamaktadır.',
+            style: const TextStyle(color: AppColors.textSecondary),
           ),
         );
       },
@@ -144,10 +151,16 @@ class _AdminApprovalPageState extends State<AdminApprovalPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Yönetici Onay Merkezi'),
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
         bottom: TabBar(
           controller: _tabController,
+          indicatorColor: Colors.white,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
           tabs: const [
             Tab(text: 'İş Atama Talepleri'),
             Tab(text: 'Bütçe Harcama Talepleri'),
@@ -201,9 +214,15 @@ class ApprovalCard extends StatelessWidget {
           children: [
             Text(
               'İş: ${request['task_title'] ?? 'N/A'}',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
             ),
-            Text('Talep Eden: $workerName'),
+            Text(
+              'Talep Eden: $workerName',
+              style: const TextStyle(color: AppColors.textPrimary),
+            ),
           ],
         );
       } else {
@@ -215,13 +234,19 @@ class ApprovalCard extends StatelessWidget {
               'Miktar: ${request['amount'] ?? 0.0} ₺',
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
-                color: Colors.blue,
+                color: AppColors.primary,
               ),
             ),
-            Text('Talep Eden: $workerName'),
+            Text(
+              'Talep Eden: $workerName',
+              style: const TextStyle(color: AppColors.textPrimary),
+            ),
             Text(
               'Gerekçe: ${request['description'] ?? 'Açıklama Yok'}',
-              style: const TextStyle(fontSize: 13),
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
             ),
           ],
         );
@@ -231,16 +256,18 @@ class ApprovalCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       elevation: 3,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
         leading: Icon(
           isTaskRequest ? Icons.assignment_ind : Icons.attach_money,
-          color: isTaskRequest ? Colors.blue : Colors.green,
+          color: isTaskRequest ? AppColors.primary : AppColors.success,
         ),
         title: _buildContent(),
         subtitle: Text(
           'Tarih: $requestDate',
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
+          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
         ),
         trailing: SizedBox(
           width: 120, // Butonları sığdırmak için sabit genişlik
@@ -249,7 +276,7 @@ class ApprovalCard extends StatelessWidget {
             children: [
               // Reddet Butonu
               IconButton(
-                icon: const Icon(Icons.close, color: Colors.red),
+                icon: const Icon(Icons.close, color: AppColors.error),
                 tooltip: 'Reddet',
                 onPressed: () =>
                     onProcess(request['id'], requestType, 'reject'),
@@ -264,8 +291,11 @@ class ApprovalCard extends StatelessWidget {
                   style: TextStyle(color: Colors.white, fontSize: 12),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
+                  backgroundColor: AppColors.success,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
               ),
             ],

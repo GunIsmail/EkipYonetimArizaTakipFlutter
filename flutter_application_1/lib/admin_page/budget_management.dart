@@ -1,6 +1,9 @@
+// lib/admin_page/budget_management_page.dart
+
 import 'package:flutter/material.dart';
 import '../services/budget_management_service.dart';
 import 'budget_history_modal.dart';
+import '../constants/app_colors.dart';
 
 class BudgetManagementPage extends StatefulWidget {
   const BudgetManagementPage({super.key});
@@ -10,8 +13,6 @@ class BudgetManagementPage extends StatefulWidget {
 }
 
 class _BudgetManagementPageState extends State<BudgetManagementPage> {
-  final Color _primaryColor = const Color(0xFF6C63FF);
-
   late Future<List<Worker>> _workersFuture;
   final WorkerBudgetService _service = WorkerBudgetService();
 
@@ -36,7 +37,7 @@ class _BudgetManagementPageState extends State<BudgetManagementPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('$description...'),
-        backgroundColor: _primaryColor.withOpacity(0.8),
+        backgroundColor: AppColors.primary.withOpacity(0.8),
         duration: const Duration(milliseconds: 800),
       ),
     );
@@ -54,22 +55,25 @@ class _BudgetManagementPageState extends State<BudgetManagementPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('İşlem Başarılı'),
-          backgroundColor: Colors.green,
+          backgroundColor: AppColors.success,
         ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message']), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(result['message']),
+          backgroundColor: AppColors.error,
+        ),
       );
     }
   }
 
-  // --- Modallar (Tasarım Giydirilmiş) ---
+  // --- Modallar ---
   void _editBudget(Worker worker) {
-    final _budgetController = TextEditingController(
+    final budgetController = TextEditingController(
       text: worker.budget.toStringAsFixed(2),
     );
-    final _descController = TextEditingController();
+    final descController = TextEditingController();
 
     showDialog(
       context: context,
@@ -77,13 +81,13 @@ class _BudgetManagementPageState extends State<BudgetManagementPage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
           '${worker.name} - Mutlak Düzenleme',
-          style: TextStyle(color: _primaryColor),
+          style: const TextStyle(color: AppColors.primary),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
-              controller: _budgetController,
+              controller: budgetController,
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
@@ -94,13 +98,16 @@ class _BudgetManagementPageState extends State<BudgetManagementPage> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: _primaryColor, width: 2),
+                  borderSide: const BorderSide(
+                    color: AppColors.primary,
+                    width: 2,
+                  ),
                 ),
               ),
             ),
             const SizedBox(height: 12),
             TextField(
-              controller: _descController,
+              controller: descController,
               decoration: InputDecoration(
                 labelText: 'Açıklama (Zorunlu)',
                 border: OutlineInputBorder(
@@ -108,7 +115,10 @@ class _BudgetManagementPageState extends State<BudgetManagementPage> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: _primaryColor, width: 2),
+                  borderSide: const BorderSide(
+                    color: AppColors.primary,
+                    width: 2,
+                  ),
                 ),
               ),
             ),
@@ -117,20 +127,23 @@ class _BudgetManagementPageState extends State<BudgetManagementPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('İptal', style: TextStyle(color: Colors.grey)),
+            child: const Text(
+              'İptal',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: _primaryColor,
+              backgroundColor: AppColors.primary,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
             onPressed: () {
               final val = double.tryParse(
-                _budgetController.text.replaceAll(',', '.'),
+                budgetController.text.replaceAll(',', '.'),
               );
-              final desc = _descController.text.trim();
+              final desc = descController.text.trim();
               if (val != null && val >= 0 && desc.isNotEmpty) {
                 Navigator.pop(context);
                 _handleBudgetUpdate(worker.id, val, 'Mutlak Değer: $desc');
@@ -144,11 +157,10 @@ class _BudgetManagementPageState extends State<BudgetManagementPage> {
   }
 
   void _showTransactionModal(Worker worker, {required bool isAddition}) {
-    final _amountController = TextEditingController();
-    final _descController = TextEditingController();
+    final amountController = TextEditingController();
+    final descController = TextEditingController();
     final action = isAddition ? 'Ekleme' : 'Çıkarma';
-    final actionColor = isAddition ? Colors.green : Colors.red;
-
+    final actionColor = isAddition ? AppColors.success : AppColors.error;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -161,7 +173,7 @@ class _BudgetManagementPageState extends State<BudgetManagementPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
-              controller: _amountController,
+              controller: amountController,
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
@@ -182,7 +194,7 @@ class _BudgetManagementPageState extends State<BudgetManagementPage> {
             ),
             const SizedBox(height: 12),
             TextField(
-              controller: _descController,
+              controller: descController,
               decoration: InputDecoration(
                 labelText: 'Açıklama (Zorunlu)',
                 border: OutlineInputBorder(
@@ -199,7 +211,10 @@ class _BudgetManagementPageState extends State<BudgetManagementPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('İptal', style: TextStyle(color: Colors.grey)),
+            child: const Text(
+              'İptal',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -210,9 +225,9 @@ class _BudgetManagementPageState extends State<BudgetManagementPage> {
             ),
             onPressed: () {
               final amount = double.tryParse(
-                _amountController.text.replaceAll(',', '.'),
+                amountController.text.replaceAll(',', '.'),
               );
-              final desc = _descController.text.trim();
+              final desc = descController.text.trim();
               if (amount != null && amount > 0 && desc.isNotEmpty) {
                 Navigator.pop(context);
                 final newBudget = isAddition
@@ -243,16 +258,19 @@ class _BudgetManagementPageState extends State<BudgetManagementPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100], // Admin Paneli arkaplanı
+      backgroundColor: AppColors.surface,
       appBar: AppBar(
-        title: Text(
+        title: const Text(
           'Bütçe Yönetimi',
-          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
-        iconTheme: const IconThemeData(color: Colors.black87),
+        iconTheme: const IconThemeData(color: AppColors.textPrimary),
       ),
       body: SafeArea(
         child: Padding(
@@ -260,11 +278,11 @@ class _BudgetManagementPageState extends State<BudgetManagementPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              const Text(
                 'Personel Listesi',
                 style: TextStyle(
                   fontSize: 16,
-                  color: Colors.grey[600],
+                  color: AppColors.textSecondary,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -274,8 +292,10 @@ class _BudgetManagementPageState extends State<BudgetManagementPage> {
                   future: _workersFuture,
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return Center(
-                        child: CircularProgressIndicator(color: _primaryColor),
+                      return const Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.primary,
+                        ),
                       );
                     } else if (snapshot.hasError) {
                       return Center(child: Text('Hata: ${snapshot.error}'));
@@ -292,7 +312,6 @@ class _BudgetManagementPageState extends State<BudgetManagementPage> {
                         final worker = snapshot.data![index];
                         return _WorkerBudgetCard(
                           worker: worker,
-                          primaryColor: _primaryColor,
                           onEdit: _editBudget,
                           onAdd: (w) =>
                               _showTransactionModal(w, isAddition: true),
@@ -316,7 +335,6 @@ class _BudgetManagementPageState extends State<BudgetManagementPage> {
 // --- Admin Paneli Tarzı Kart Tasarımı ---
 class _WorkerBudgetCard extends StatelessWidget {
   final Worker worker;
-  final Color primaryColor;
   final ValueChanged<Worker> onEdit;
   final ValueChanged<Worker> onAdd;
   final ValueChanged<Worker> onSubtract;
@@ -324,7 +342,6 @@ class _WorkerBudgetCard extends StatelessWidget {
 
   const _WorkerBudgetCard({
     required this.worker,
-    required this.primaryColor,
     required this.onEdit,
     required this.onAdd,
     required this.onSubtract,
@@ -335,10 +352,8 @@ class _WorkerBudgetCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(
-          20,
-        ), // Admin paneliyle aynı yuvarlaklık
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -356,20 +371,17 @@ class _WorkerBudgetCard extends StatelessWidget {
             padding: const EdgeInsets.all(20.0),
             child: Column(
               children: [
-                // Üst Kısım: İkon, İsim, Rol
                 Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: primaryColor.withOpacity(
-                          0.1,
-                        ), // Temanın açık tonu
+                        color: AppColors.primary.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(
+                      child: const Icon(
                         Icons.account_balance_wallet_outlined,
-                        color: primaryColor,
+                        color: AppColors.primary,
                         size: 28,
                       ),
                     ),
@@ -383,7 +395,7 @@ class _WorkerBudgetCard extends StatelessWidget {
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: Colors.black87,
+                              color: AppColors.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -400,8 +412,8 @@ class _WorkerBudgetCard extends StatelessWidget {
                               const SizedBox(width: 6),
                               Text(
                                 worker.role,
-                                style: TextStyle(
-                                  color: Colors.grey[600],
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
                                   fontSize: 13,
                                 ),
                               ),
@@ -428,7 +440,10 @@ class _WorkerBudgetCard extends StatelessWidget {
                       children: [
                         const Text(
                           "Mevcut Bütçe",
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                         Text(
                           '${worker.budget.toStringAsFixed(2)} ₺',
@@ -436,8 +451,8 @@ class _WorkerBudgetCard extends StatelessWidget {
                             fontSize: 20,
                             fontWeight: FontWeight.w900,
                             color: worker.budget < 0
-                                ? Colors.red
-                                : primaryColor,
+                                ? AppColors.error
+                                : AppColors.primary,
                           ),
                         ),
                       ],
@@ -448,19 +463,19 @@ class _WorkerBudgetCard extends StatelessWidget {
                       children: [
                         _MiniActionButton(
                           icon: Icons.remove,
-                          color: Colors.red,
+                          color: AppColors.error,
                           onTap: () => onSubtract(worker),
                         ),
                         const SizedBox(width: 10),
                         _MiniActionButton(
                           icon: Icons.add,
-                          color: Colors.green,
+                          color: AppColors.success,
                           onTap: () => onAdd(worker),
                         ),
                         const SizedBox(width: 10),
                         _MiniActionButton(
                           icon: Icons.edit,
-                          color: primaryColor,
+                          color: AppColors.primary,
                           isOutlined: true,
                           onTap: () => onEdit(worker),
                         ),

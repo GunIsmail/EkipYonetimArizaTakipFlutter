@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import '../widgets/worker_task_card.dart';
 import '../admin_page/task_model.dart';
+// Havuz verisini çekmek için servisi import ediyoruz
+import '../services/employee_service.dart';
 
 class EmployeeView extends StatefulWidget {
   final String username;
@@ -9,18 +11,14 @@ class EmployeeView extends StatefulWidget {
   final String currentAvailability;
   final List<String> availabilityOptions;
 
-  // Callback Fonksiyonlar (Logic sayfasından gelecek)
+  // Callback Fonksiyonlar
   final Function(String) onStatusChanged;
   final VoidCallback onLogout;
   final Function(int) onTaskRequest;
-
-  // Görev Tamamlama Callback'i
   final Function(int taskId, String desc, double amount) onTaskComplete;
-
-  // --- YENİ EKLENEN: Geçmişi Göster Callback'i ---
   final VoidCallback onShowHistory;
 
-  // Veri çekme fonksiyonu
+  // Kişisel işleri çekme fonksiyonu (Page'den gelir)
   final Future<List<WorkOrder>> Function(String statusFilter) fetchTasks;
 
   const EmployeeView({
@@ -33,7 +31,7 @@ class EmployeeView extends StatefulWidget {
     required this.onLogout,
     required this.onTaskRequest,
     required this.onTaskComplete,
-    required this.onShowHistory, // Constructor'a eklendi
+    required this.onShowHistory,
     required this.fetchTasks,
   });
 
@@ -44,12 +42,18 @@ class EmployeeView extends StatefulWidget {
 class _EmployeeViewState extends State<EmployeeView>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final List<String> _tabTitles = ['Yeni Atanan', 'Süreçteki İşler'];
-  final List<String> _statusFilters = ['NEW', 'IN_PROGRESS'];
+
+  // 3 Sekme Başlığı
+  final List<String> _tabTitles = [
+    'İş Havuzu',
+    'Üzerimdeki İşler',
+    'Tamamlanan',
+  ];
 
   @override
   void initState() {
     super.initState();
+    // Sekme sayısını 3 yaptık
     _tabController = TabController(length: _tabTitles.length, vsync: this);
   }
 
@@ -89,6 +93,8 @@ class _EmployeeViewState extends State<EmployeeView>
                 _buildHeader(),
                 _buildInfoCard(primaryColor),
                 const SizedBox(height: 20),
+
+                // --- TAB BAR ---
                 TabBar(
                   controller: _tabController,
                   labelColor: primaryColor,
@@ -96,12 +102,21 @@ class _EmployeeViewState extends State<EmployeeView>
                   indicatorColor: primaryColor,
                   tabs: _tabTitles.map((t) => Tab(text: t)).toList(),
                 ),
+
+                // --- TAB VIEW (İçerikler) ---
                 Expanded(
                   child: TabBarView(
                     controller: _tabController,
-                    children: _statusFilters
-                        .map((status) => _buildTaskList(status))
-                        .toList(),
+                    children: [
+                      // 1. Sekme: HAVUZ (Yeni Fonksiyon - Servisten direkt çeker)
+                      _buildPoolList(),
+
+                      // 2. Sekme: SÜREÇTEKİLER (Page'den gelen fonksiyon)
+                      _buildMyTaskList('IN_PROGRESS'),
+
+                      // 3. Sekme: TAMAMLANANLAR (Page'den gelen fonksiyon)
+                      _buildMyTaskList('COMPLETED'),
+                    ],
                   ),
                 ),
               ],
@@ -109,6 +124,70 @@ class _EmployeeViewState extends State<EmployeeView>
           ),
         ],
       ),
+    );
+  }
+
+  // --- 1. HAVUZ LİSTESİ WIDGET'I ---
+  Widget _buildPoolList() {
+    return FutureBuilder<List<WorkOrder>>(
+      future: EmployeeService().fetchPoolTasks(), // Servisten direkt çağrı
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text("Hata: ${snapshot.error}"));
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(child: Text("Havuzda açık iş yok."));
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: snapshot.data!.length,
+          itemBuilder: (ctx, i) {
+            final task = snapshot.data![i];
+            return WorkerTaskCard(
+              task: task,
+              // Havuzdaki iş için "Talep Et" butonu aktiftir
+              onTaskRequest: widget.onTaskRequest,
+              // Havuzdaki iş tamamlanamaz, o yüzden burası işlevsiz olabilir veya kontrol edilebilir
+              onTaskComplete: widget.onTaskComplete,
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // --- 2. KİŞİSEL GÖREV LİSTESİ WIDGET'I ---
+  Widget _buildMyTaskList(String status) {
+    return FutureBuilder<List<WorkOrder>>(
+      future: widget.fetchTasks(status), // Page'den gelen fonksiyonu kullanır
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text("Hata: ${snapshot.error}"));
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          String msg = status == 'IN_PROGRESS'
+              ? "Üzerinizde aktif iş yok."
+              : "Henüz tamamlanan iş yok.";
+          return Center(child: Text(msg));
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: snapshot.data!.length,
+          itemBuilder: (ctx, i) => WorkerTaskCard(
+            task: snapshot.data![i],
+            onTaskRequest: widget.onTaskRequest,
+            onTaskComplete: widget.onTaskComplete,
+          ),
+        );
+      },
     );
   }
 
@@ -166,7 +245,6 @@ class _EmployeeViewState extends State<EmployeeView>
                     'Mevcut Bütçe',
                     style: TextStyle(color: Colors.grey[600]),
                   ),
-                  // Bütçe ve Geçmiş Butonu Yan Yana
                   Row(
                     children: [
                       Text(
@@ -178,7 +256,6 @@ class _EmployeeViewState extends State<EmployeeView>
                         ),
                       ),
                       const SizedBox(width: 8),
-                      // --- GEÇMİŞ BUTONU ---
                       IconButton(
                         icon: const Icon(Icons.history, color: Colors.orange),
                         tooltip: 'Bütçe Geçmişi',
@@ -213,33 +290,6 @@ class _EmployeeViewState extends State<EmployeeView>
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildTaskList(String status) {
-    return FutureBuilder<List<WorkOrder>>(
-      future: widget.fetchTasks(status),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Center(child: Text("Hata: ${snapshot.error}"));
-        }
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text("İş emri bulunamadı."));
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: snapshot.data!.length,
-          itemBuilder: (ctx, i) => WorkerTaskCard(
-            task: snapshot.data![i],
-            onTaskRequest: widget.onTaskRequest,
-            onTaskComplete: widget.onTaskComplete,
-          ),
-        );
-      },
     );
   }
 }

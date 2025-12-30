@@ -42,10 +42,7 @@ class EmployeeService {
     }
   }
 
-  // 3. İş Emirlerini Listele (HATA DÜZELTİLDİ: status -> statusFilter)
   Future<List<WorkOrder>> fetchTasks(int workerId, String statusFilter) async {
-    // Hem Statüye hem de İşçi ID'sine göre filtreleme yapıyoruz.
-    // Böylece başkasının işini görmez.
     final uri = Uri.parse(
       '${Api.baseUrl}/api/tasks/?status=$statusFilter&worker_id=$workerId',
     );
@@ -97,6 +94,24 @@ class EmployeeService {
       print("Hata (Geçmiş): $e");
       return [];
     }
+  }
+
+  Future<List<WorkOrder>> fetchPoolTasks() async {
+    // Status=NEW ve unassigned=true olanları istiyoruz
+    final uri = Uri.parse(
+      '${Api.baseUrl}/api/tasks/?status=NEW&unassigned=true',
+    );
+
+    try {
+      final response = await http.get(uri);
+      if (response.statusCode == 200) {
+        List<dynamic> jsonList = jsonDecode(utf8.decode(response.bodyBytes));
+        return jsonList.map((json) => WorkOrder.fromJson(json)).toList();
+      }
+    } catch (e) {
+      print("Havuz yükleme hatası: $e");
+    }
+    return [];
   }
 
   // 6. İşi Tamamla ve Bütçe Onayı İste

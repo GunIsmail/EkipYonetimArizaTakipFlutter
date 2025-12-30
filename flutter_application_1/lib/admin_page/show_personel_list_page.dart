@@ -1,7 +1,8 @@
 // lib/admin_page/show_personel_list_page.dart
 import 'package:flutter/material.dart';
 import '../services/personel_service.dart';
-import 'assign_job_page.dart'; // İş atama sayfasını import ettik
+import 'assign_job_page.dart';
+import '../constants/app_colors.dart';
 
 class ShowPersonelListPage extends StatefulWidget {
   const ShowPersonelListPage({super.key});
@@ -11,7 +12,6 @@ class ShowPersonelListPage extends StatefulWidget {
 }
 
 class _ShowPersonelListPageState extends State<ShowPersonelListPage> {
-  // Servis sınıfını başlat
   final PersonelService _personelService = PersonelService();
   late Future<List<Worker>> _workersFuture;
 
@@ -21,27 +21,30 @@ class _ShowPersonelListPageState extends State<ShowPersonelListPage> {
     _workersFuture = _personelService.fetchWorkers();
   }
 
-  // GRUPLANDIRILMIŞ LİSTE OLUŞTURMA VE GÖRÜNTÜLEME
   Widget _buildGroupedWorkerList() {
     return FutureBuilder<List<Worker>>(
       future: _workersFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
+          );
         } else if (snapshot.hasError) {
-          return Center(child: Text('Veri Yükleme Hatası: ${snapshot.error}'));
+          return Center(
+            child: Text(
+              'Veri Yükleme Hatası: ${snapshot.error}',
+              style: const TextStyle(color: AppColors.error),
+            ),
+          );
         } else if (snapshot.hasData && snapshot.data!.isNotEmpty) {
           final List<Worker> workers = snapshot.data!;
 
-          // Durumlarına göre gruplandırma
           final Map<String, List<Worker>> groupedWorkers = {};
           for (var worker in workers) {
             final statusKey = worker.status;
             groupedWorkers.putIfAbsent(statusKey, () => []).add(worker);
           }
 
-          // Grupları öncelik sırasına göre sıralama
-          // 'Meşgul' durumunu buraya ekledik.
           List<String> orderedKeys = [
             'Müsait',
             'Aktif Görevde',
@@ -50,14 +53,11 @@ class _ShowPersonelListPageState extends State<ShowPersonelListPage> {
             'Bilinmiyor',
           ];
 
-          // EĞER listede olmayan yeni bir durum gelirse (örn: Raporlu),
-          // kaybolmaması için listenin sonuna ekliyoruz:
           final otherKeys = groupedWorkers.keys
               .where((key) => !orderedKeys.contains(key))
               .toList();
           orderedKeys.addAll(otherKeys);
 
-          // Sadece verisi olan grupları filtrele
           final finalKeys = orderedKeys
               .where((key) => groupedWorkers.containsKey(key))
               .toList();
@@ -72,7 +72,6 @@ class _ShowPersonelListPageState extends State<ShowPersonelListPage> {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Grup Başlığı
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       vertical: 10,
@@ -87,8 +86,6 @@ class _ShowPersonelListPageState extends State<ShowPersonelListPage> {
                       ),
                     ),
                   ),
-
-                  // Çalışanların Listesi (Bu gruba ait)
                   ...workerList
                       .map((worker) => _PersonelStatusCard(worker: worker))
                       .toList(),
@@ -98,7 +95,12 @@ class _ShowPersonelListPageState extends State<ShowPersonelListPage> {
             },
           );
         } else {
-          return const Center(child: Text('Personel bulunamadı.'));
+          return const Center(
+            child: Text(
+              'Personel bulunamadı.',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          );
         }
       },
     );
@@ -107,7 +109,12 @@ class _ShowPersonelListPageState extends State<ShowPersonelListPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Personel Durum Listesi')),
+      backgroundColor: AppColors.surface,
+      appBar: AppBar(
+        title: const Text('Personel Durum Listesi'),
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -115,9 +122,10 @@ class _ShowPersonelListPageState extends State<ShowPersonelListPage> {
           children: [
             Text(
               'Personel Durumuna Göre Gruplandırılmış Liste',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
             ),
             const SizedBox(height: 12),
             Expanded(child: _buildGroupedWorkerList()),
@@ -128,7 +136,6 @@ class _ShowPersonelListPageState extends State<ShowPersonelListPage> {
   }
 }
 
-// --- CARD WIDGET ---
 class _PersonelStatusCard extends StatelessWidget {
   final Worker worker;
 
@@ -137,7 +144,9 @@ class _PersonelStatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      color: AppColors.background,
       margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
         leading: Icon(
           Icons.person_pin_circle_outlined,
@@ -146,9 +155,15 @@ class _PersonelStatusCard extends StatelessWidget {
         ),
         title: Text(
           worker.name,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
         ),
-        subtitle: Text('Rol: ${worker.role} | Tel: ${worker.phone}'),
+        subtitle: Text(
+          'Rol: ${worker.role} | Tel: ${worker.phone}',
+          style: const TextStyle(color: AppColors.textSecondary),
+        ),
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
@@ -164,7 +179,6 @@ class _PersonelStatusCard extends StatelessWidget {
           ),
         ),
         onTap: () {
-          // Tıklandığında İş Atama Sayfasına Git
           Navigator.push(
             context,
             MaterialPageRoute(

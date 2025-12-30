@@ -1,9 +1,9 @@
 // lib/login_page/login_page.dart
 import 'package:flutter/material.dart';
 import '../services/login_service.dart';
-// Sayfa importları
 import '../admin_page/admin_panel_page.dart';
 import '../employee_page/employeePage.dart';
+import '../constants/app_colors.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -36,7 +36,7 @@ class _LoginPageState extends State<LoginPage> {
         const SnackBar(
           content: Text('Lütfen kullanıcı adı ve şifreyi girin.'),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.orange,
+          backgroundColor: AppColors.warning,
         ),
       );
       return;
@@ -46,27 +46,19 @@ class _LoginPageState extends State<LoginPage> {
       _isLoading = true;
     });
 
-    //  Servise git ve cevabı bekle
     final result = await _loginService.login(username, password);
 
-    // Context hala geçerli mi kontrol et (Sayfa kapandıysa işlem yapma)
     if (!mounted) return;
 
-    // 4. Yükleniyor durumunu kapat
     setState(() {
       _isLoading = false;
     });
 
-    // 5. Sonuca göre işlem yap
     if (result['success'] == true) {
-      // --- BAŞARILI ---
       final bool isAdmin = result['is_admin'];
       final int? userId = result['user_id'];
       final String finalUsername = result['username'];
 
-      print("Giriş Başarılı! Admin mi: $isAdmin, ID: $userId");
-
-      // Yönlendirme
       if (isAdmin) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const AdminPanelPage()),
@@ -80,11 +72,10 @@ class _LoginPageState extends State<LoginPage> {
         );
       }
     } else {
-      // --- HATA ---
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result['message'] ?? 'Bir hata oluştu'),
-          backgroundColor: Colors.redAccent,
+          backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -93,19 +84,18 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryColor = Color(0xFF6C63FF);
-    const Color secondaryColor = Color(0xFF4B45B2);
-
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.background,
       body: Stack(
         children: [
-          // Arka Plan Dekoru
           Container(
             height: MediaQuery.of(context).size.height * 0.4,
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [primaryColor, secondaryColor],
+                colors: [
+                  AppColors.primary,
+                  AppColors.secondary,
+                ], // <--- GÜNCELLENDİ
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -166,14 +156,14 @@ class _LoginPageState extends State<LoginPage> {
                               labelText: 'Kullanıcı Adı',
                               prefixIcon: const Icon(
                                 Icons.person_outline,
-                                color: primaryColor,
+                                color: AppColors.primary,
                               ),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                                 borderSide: BorderSide.none,
                               ),
                               filled: true,
-                              fillColor: Colors.grey[100],
+                              fillColor: AppColors.surface,
                               contentPadding: const EdgeInsets.symmetric(
                                 vertical: 16,
                               ),
@@ -188,14 +178,14 @@ class _LoginPageState extends State<LoginPage> {
                               labelText: 'Şifre',
                               prefixIcon: const Icon(
                                 Icons.lock_outline,
-                                color: primaryColor,
+                                color: AppColors.primary,
                               ),
                               suffixIcon: IconButton(
                                 icon: Icon(
                                   _obscureText
                                       ? Icons.visibility_off
                                       : Icons.visibility,
-                                  color: Colors.grey,
+                                  color: AppColors.textSecondary,
                                 ),
                                 onPressed: () {
                                   setState(() {
@@ -208,7 +198,7 @@ class _LoginPageState extends State<LoginPage> {
                                 borderSide: BorderSide.none,
                               ),
                               filled: true,
-                              fillColor: Colors.grey[100],
+                              fillColor: AppColors.surface,
                               contentPadding: const EdgeInsets.symmetric(
                                 vertical: 16,
                               ),
@@ -221,13 +211,13 @@ class _LoginPageState extends State<LoginPage> {
                             child: _isLoading
                                 ? const Center(
                                     child: CircularProgressIndicator(
-                                      color: primaryColor,
+                                      color: AppColors.primary,
                                     ),
                                   )
                                 : ElevatedButton(
                                     onPressed: _handleLogin,
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: primaryColor,
+                                      backgroundColor: AppColors.primary,
                                       foregroundColor: Colors.white,
                                       elevation: 2,
                                       shape: RoundedRectangleBorder(
@@ -248,9 +238,12 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  Text(
+                  const Text(
                     "Personel Yönetim Sistemi v1.0",
-                    style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),

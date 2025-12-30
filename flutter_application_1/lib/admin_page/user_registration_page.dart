@@ -1,7 +1,8 @@
 // lib/auth/register_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../services/auth_service.dart'; // Servisi import etmeyi unutmayın
+import '../services/auth_service.dart';
+import '../constants/app_colors.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -14,7 +15,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final AuthService _authService = AuthService();
 
   final _username = TextEditingController();
-  final _phoneDigits = TextEditingController(); // sadece 10 hane (5xx...)
+  final _phoneDigits = TextEditingController();
   final _password = TextEditingController();
   final _passwordAgain = TextEditingController();
 
@@ -41,7 +42,6 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Future<void> _onRegister() async {
-    // Temel Validasyonlar (UI Tarafında)
     if (_username.text.isEmpty ||
         _phoneDigits.text.isEmpty ||
         _password.text.isEmpty ||
@@ -57,7 +57,6 @@ class _RegisterPageState extends State<RegisterPage> {
 
     setState(() => _isLoading = true);
 
-    // Servise Gönder
     final result = await _authService.registerUser(
       username: _username.text,
       password: _password.text,
@@ -70,7 +69,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
     if (result['success']) {
       _showSnackBar(result['message'], isError: false);
-      Navigator.of(context).pop(); // Başarılıysa sayfayı kapat
+      Navigator.of(context).pop();
     } else {
       _showSnackBar(result['message'], isError: true);
     }
@@ -80,7 +79,7 @@ class _RegisterPageState extends State<RegisterPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: isError ? Colors.redAccent : Colors.green,
+        backgroundColor: isError ? AppColors.error : AppColors.success,
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -88,14 +87,11 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Tasarım Renkleri
-    const Color primaryColor = Color(0xFF6C63FF);
-
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Yeni Personel Kaydı'),
-        backgroundColor: primaryColor,
+        backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
@@ -105,11 +101,10 @@ class _RegisterPageState extends State<RegisterPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Logo veya İkon
               const Icon(
                 Icons.person_add_alt_1_rounded,
                 size: 80,
-                color: primaryColor,
+                color: AppColors.primary,
               ),
               const SizedBox(height: 20),
 
@@ -119,12 +114,11 @@ class _RegisterPageState extends State<RegisterPage> {
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: AppColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 30),
 
-              // Kullanıcı Adı
               _buildTextField(
                 controller: _username,
                 label: 'Kullanıcı Adı',
@@ -132,7 +126,6 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               const SizedBox(height: 16),
 
-              // Telefon
               _buildTextField(
                 controller: _phoneDigits,
                 label: 'Telefon',
@@ -143,7 +136,6 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               const SizedBox(height: 16),
 
-              // Şifre
               _buildTextField(
                 controller: _password,
                 label: 'Şifre',
@@ -152,7 +144,6 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               const SizedBox(height: 16),
 
-              // Şifre Tekrar
               _buildTextField(
                 controller: _passwordAgain,
                 label: 'Şifre (Tekrar)',
@@ -161,19 +152,18 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               const SizedBox(height: 24),
 
-              // Rol Seçimi
               DropdownButtonFormField<String>(
                 decoration: InputDecoration(
                   labelText: 'Rol Seçiniz',
                   prefixIcon: const Icon(
                     Icons.work_outline,
-                    color: primaryColor,
+                    color: AppColors.primary,
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                   filled: true,
-                  fillColor: Colors.grey[50],
+                  fillColor: AppColors.surface,
                 ),
                 value: _selectedRole,
                 items: _roleOptions
@@ -189,13 +179,12 @@ class _RegisterPageState extends State<RegisterPage> {
 
               const SizedBox(height: 32),
 
-              // Kayıt Butonu
               SizedBox(
                 height: 55,
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _onRegister,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryColor,
+                    backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -220,7 +209,6 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  // Helper Widget: TextField Oluşturucu
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
@@ -244,10 +232,10 @@ class _RegisterPageState extends State<RegisterPage> {
         labelText: label,
         hintText: hint,
         prefixText: prefixText,
-        prefixIcon: Icon(icon, color: const Color(0xFF6C63FF)),
+        prefixIcon: Icon(icon, color: AppColors.primary),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         filled: true,
-        fillColor: Colors.grey[50],
+        fillColor: AppColors.surface,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 16,

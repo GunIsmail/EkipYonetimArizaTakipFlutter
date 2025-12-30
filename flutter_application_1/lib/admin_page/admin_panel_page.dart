@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import '../services/admin_service.dart';
+import '../constants/app_colors.dart';
 
 // Sayfa Importları
 import 'task_management.dart';
@@ -11,14 +12,11 @@ import 'user_registration_page.dart';
 import 'show_personel_list_page.dart';
 
 class AdminPanelPage extends StatelessWidget {
-  // ARTIK BURADA İSİM DEĞİŞKENİNE GEREK YOK
-  // Çünkü ismi veritabanından çekeceğiz.
   const AdminPanelPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     final AdminService adminService = AdminService();
-    const Color primaryColor = Color(0xFF6C63FF);
 
     final List<AdminMenuItem> menuItems = [
       AdminMenuItem(
@@ -34,7 +32,7 @@ class AdminPanelPage extends StatelessWidget {
       AdminMenuItem(
         title: 'Yeni Kullanıcı Kaydı',
         icon: Icons.person_add_alt_1_outlined,
-        page: RegisterPage(),
+        page: const RegisterPage(),
       ),
       AdminMenuItem(
         title: 'İş Ata / Personel Durumu',
@@ -49,7 +47,7 @@ class AdminPanelPage extends StatelessWidget {
     ];
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: AppColors.surface, // Eskiden grey[100] idi
       body: SafeArea(
         child: Column(
           children: [
@@ -63,20 +61,17 @@ class AdminPanelPage extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: AppColors.textPrimary,
                     letterSpacing: 1.2,
                   ),
                 ),
               ),
             ),
 
-            // Bilgi Kartı (İsim artık parametre olarak gitmiyor)
+            // Bilgi Kartı
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              child: _AdminInfoCard(
-                primaryColor: primaryColor,
-                adminService: adminService,
-              ),
+              child: _AdminInfoCard(adminService: adminService),
             ),
 
             const SizedBox(height: 10),
@@ -91,10 +86,7 @@ class AdminPanelPage extends StatelessWidget {
                   separatorBuilder: (context, index) =>
                       const SizedBox(height: 16),
                   itemBuilder: (context, index) {
-                    return _ActionButton(
-                      item: menuItems[index],
-                      primaryColor: primaryColor,
-                    );
+                    return _ActionButton(item: menuItems[index]);
                   },
                 ),
               ),
@@ -107,13 +99,13 @@ class AdminPanelPage extends StatelessWidget {
               child: ElevatedButton.icon(
                 onPressed: () => adminService.logout(context),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red[50],
-                  foregroundColor: Colors.red,
+                  backgroundColor: AppColors.error.withOpacity(0.1),
+                  foregroundColor: AppColors.error,
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
-                    side: BorderSide(color: Colors.red.withOpacity(0.2)),
+                    side: BorderSide(color: AppColors.error.withOpacity(0.2)),
                   ),
                 ),
                 icon: const Icon(Icons.logout_rounded),
@@ -132,14 +124,9 @@ class AdminPanelPage extends StatelessWidget {
 
 // --- GÜNCELLENEN BİLGİ KARTI ---
 class _AdminInfoCard extends StatefulWidget {
-  final Color primaryColor;
   final AdminService adminService;
-  // adminName değişkenini buradan da kaldırdık
 
-  const _AdminInfoCard({
-    required this.primaryColor,
-    required this.adminService,
-  });
+  const _AdminInfoCard({required this.adminService});
 
   @override
   State<_AdminInfoCard> createState() => _AdminInfoCardState();
@@ -162,7 +149,7 @@ class _AdminInfoCardState extends State<_AdminInfoCard> {
         // Varsayılan Değerler
         String budgetText = "--- ₺";
         String statusText = "Yükleniyor...";
-        String nameText = "Yükleniyor..."; // İsim için varsayılan
+        String nameText = "Yükleniyor...";
 
         Color statusContentColor = Colors.white;
         Color statusBgColor = Colors.white.withOpacity(0.2);
@@ -189,17 +176,17 @@ class _AdminInfoCardState extends State<_AdminInfoCard> {
         return Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: widget.primaryColor,
+            color: AppColors.primary,
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: widget.primaryColor.withOpacity(0.4),
+                color: AppColors.primary.withOpacity(0.4),
                 blurRadius: 15,
                 offset: const Offset(0, 8),
               ),
             ],
-            gradient: LinearGradient(
-              colors: [widget.primaryColor, const Color(0xFF4B45B2)],
+            gradient: const LinearGradient(
+              colors: [AppColors.primary, AppColors.secondary],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -257,12 +244,12 @@ class _AdminInfoCardState extends State<_AdminInfoCard> {
                         children: [
                           Icon(
                             Icons.account_balance_wallet,
-                            color: Colors.amberAccent,
+                            color: AppColors.warning,
                             size: 18,
                           ),
                           SizedBox(width: 6),
                           Text(
-                            "Kasa Bakiyesi", // 'Toplam Bütçe' yerine 'Kasa Bakiyesi' daha mantıklı olabilir admin için
+                            "Kasa Bakiyesi",
                             style: TextStyle(
                               color: Colors.white70,
                               fontSize: 14,
@@ -330,12 +317,11 @@ class _AdminInfoCardState extends State<_AdminInfoCard> {
   }
 }
 
-// Buton Tasarımı (Değişmedi, aynı kalıyor)
+// Buton Tasarımı
 class _ActionButton extends StatelessWidget {
   final AdminMenuItem item;
-  final Color primaryColor;
 
-  const _ActionButton({required this.item, required this.primaryColor});
+  const _ActionButton({required this.item});
 
   @override
   Widget build(BuildContext context) {
@@ -348,8 +334,8 @@ class _ActionButton extends StatelessWidget {
           ).push(MaterialPageRoute(builder: (context) => item.page));
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white,
-          foregroundColor: primaryColor,
+          backgroundColor: AppColors.background, // Kartlar beyaz olsun
+          foregroundColor: AppColors.primary,
           elevation: 2,
           shadowColor: Colors.black.withOpacity(0.05),
           shape: RoundedRectangleBorder(
@@ -362,10 +348,10 @@ class _ActionButton extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: primaryColor.withOpacity(0.1),
+                color: AppColors.primary.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(item.icon, size: 26, color: primaryColor),
+              child: Icon(item.icon, size: 26, color: AppColors.primary),
             ),
             const SizedBox(width: 20),
             Expanded(
@@ -374,14 +360,14 @@ class _ActionButton extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+                  color: AppColors.textPrimary,
                 ),
               ),
             ),
-            Icon(
+            const Icon(
               Icons.arrow_forward_ios_rounded,
               size: 18,
-              color: Colors.grey[400],
+              color: AppColors.textSecondary,
             ),
           ],
         ),

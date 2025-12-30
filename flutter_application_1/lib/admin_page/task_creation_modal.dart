@@ -1,5 +1,7 @@
+// lib/admin_page/task_creation_modal.dart
 import 'package:flutter/material.dart';
 import '../services/task_service.dart';
+import '../constants/app_colors.dart';
 
 class TaskCreationModal extends StatefulWidget {
   final VoidCallback onTaskCreated;
@@ -31,7 +33,6 @@ class _TaskCreationModalState extends State<TaskCreationModal> {
   Future<void> _handleCreateTask() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Servisi çağır task_service.dart cagırılacak.
     final result = await _taskService.createTask(
       title: _titleController.text.trim(),
       description: _descriptionController.text.trim(),
@@ -42,21 +43,21 @@ class _TaskCreationModalState extends State<TaskCreationModal> {
     if (!mounted) return;
 
     if (result['success'] == true) {
-      // Başarılı
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result['message']),
-          backgroundColor: Colors.green,
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
         ),
       );
       Navigator.of(context).pop();
-      widget.onTaskCreated(); // Listeyi yenilemesi için ana sayfaya haber ver
+      widget.onTaskCreated();
     } else {
-      // Hata
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Kayıt Başarısız: ${result['message']}'),
-          backgroundColor: Colors.redAccent,
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -65,58 +66,68 @@ class _TaskCreationModalState extends State<TaskCreationModal> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Yeni Arıza Kaydı Oluştur'),
+      title: const Text(
+        'Yeni Arıza Kaydı Oluştur',
+        style: TextStyle(color: AppColors.primary),
+      ),
+      backgroundColor: AppColors.background,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       content: SingleChildScrollView(
         child: Form(
           key: _formKey,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // 1. Başlık
               TextFormField(
                 controller: _titleController,
                 decoration: const InputDecoration(
                   labelText: 'Başlık / Özet',
-                  prefixIcon: Icon(Icons.title),
+                  prefixIcon: Icon(Icons.title, color: AppColors.primary),
                   border: OutlineInputBorder(),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.primary, width: 2),
+                  ),
                 ),
                 validator: (v) => v!.isEmpty ? 'Başlık zorunludur' : null,
               ),
               const SizedBox(height: 12),
-
-              // 2. Açıklama
               TextFormField(
                 controller: _descriptionController,
                 decoration: const InputDecoration(
                   labelText: 'Arıza Detayı / Tanım',
-                  prefixIcon: Icon(Icons.description),
+                  prefixIcon: Icon(Icons.description, color: AppColors.primary),
                   border: OutlineInputBorder(),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.primary, width: 2),
+                  ),
                 ),
                 keyboardType: TextInputType.multiline,
                 maxLines: 3,
                 validator: (v) => v!.isEmpty ? 'Açıklama zorunludur' : null,
               ),
               const SizedBox(height: 12),
-
-              // 3. Müşteri Adresi
               TextFormField(
                 controller: _addressController,
                 decoration: const InputDecoration(
                   labelText: 'Müşteri Adresi',
-                  prefixIcon: Icon(Icons.location_on),
+                  prefixIcon: Icon(Icons.location_on, color: AppColors.primary),
                   border: OutlineInputBorder(),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.primary, width: 2),
+                  ),
                 ),
                 validator: (v) => v!.isEmpty ? 'Adres zorunludur' : null,
               ),
               const SizedBox(height: 12),
-
-              // 4. Müşteri Telefonu
               TextFormField(
                 controller: _phoneController,
                 decoration: const InputDecoration(
                   labelText: 'Müşteri Telefonu',
-                  prefixIcon: Icon(Icons.phone),
+                  prefixIcon: Icon(Icons.phone, color: AppColors.primary),
                   border: OutlineInputBorder(),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.primary, width: 2),
+                  ),
                 ),
                 keyboardType: TextInputType.phone,
               ),
@@ -128,13 +139,19 @@ class _TaskCreationModalState extends State<TaskCreationModal> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('İptal', style: TextStyle(color: Colors.grey)),
+          child: const Text(
+            'İptal',
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
         ),
         ElevatedButton(
           onPressed: _handleCreateTask,
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF6C63FF),
+            backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
           child: const Text('Kaydet ve Yönlendir'),
         ),

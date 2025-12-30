@@ -6,6 +6,7 @@ import 'dart:async';
 import '../Definitions.dart';
 import 'task_model.dart';
 import 'task_creation_modal.dart';
+import '../constants/app_colors.dart';
 
 class TaskManagementPage extends StatefulWidget {
   const TaskManagementPage({super.key});
@@ -36,14 +37,11 @@ class _TaskManagementPageState extends State<TaskManagementPage>
     super.dispose();
   }
 
-  // --- Liste Yenileme Fonksiyonu ---
   void _refreshTaskList() {
-    // setState asenkron hatasını önlemek için Future'ı dışarıda atayıp boş setState kullanıyoruz.
     _taskRefreshFuture = Future.value();
     setState(() {});
   }
 
-  // --- API: İş Emirlerini Duruma Göre Çekme Fonksiyonu ---
   Future<List<WorkOrder>> _fetchWorkOrders(String statusFilter) async {
     final uri = Uri.parse('${Api.baseUrl}/api/tasks/?status=$statusFilter');
 
@@ -62,40 +60,45 @@ class _TaskManagementPageState extends State<TaskManagementPage>
     }
   }
 
-  // --- API: İş Emri Silme Fonksiyonu ---
   Future<void> _deleteWorkOrder(int taskId) async {
-    // API: /api/tasks/{id}/
     final uri = Uri.parse('${Api.baseUrl}/api/tasks/$taskId/');
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('İş emri siliniyor...')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('İş emri siliniyor...'),
+        backgroundColor: AppColors.primary,
+      ),
+    );
 
     try {
-      // Silme isteği gönder (headers boş - token'sız çözüm)
       final response = await http.delete(uri);
 
       if (response.statusCode == 204) {
-        // 204 No Content = Başarılı Silme
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('İş emri başarıyla silindi.')),
+          const SnackBar(
+            content: Text('İş emri başarıyla silindi.'),
+            backgroundColor: AppColors.success,
+          ),
         );
-        _refreshTaskList(); // Listeyi yenile
+        _refreshTaskList();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Silme Başarısız. Hata kodu: ${response.statusCode}'),
+            backgroundColor: AppColors.error,
           ),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Ağ Hatası: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Ağ Hatası: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
     }
   }
 
-  // --- Yeni İş Emri Oluşturma Modalını Açma ---
   void _showCreateTaskModal() {
     showDialog(
       context: context,
@@ -103,32 +106,37 @@ class _TaskManagementPageState extends State<TaskManagementPage>
     );
   }
 
-  // --- İş Emri Listesini Gösteren Widget ---
   Widget _buildTaskList(String statusFilter) {
     return FutureBuilder<List<WorkOrder>>(
-      // Hem _taskRefreshFuture hem de _fetchWorkOrders'ı bağlar
       future: _taskRefreshFuture!.then((_) => _fetchWorkOrders(statusFilter)),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
+          );
         } else if (snapshot.hasError) {
-          return Center(child: Text('Veri Yükleme Hatası: ${snapshot.error}'));
+          return Center(
+            child: Text(
+              'Veri Yükleme Hatası: ${snapshot.error}',
+              style: const TextStyle(color: AppColors.error),
+            ),
+          );
         } else if (snapshot.hasData && snapshot.data!.isNotEmpty) {
           return ListView.builder(
             padding: const EdgeInsets.all(12),
             itemCount: snapshot.data!.length,
             itemBuilder: (context, index) {
               final task = snapshot.data![index];
-              return TaskCard(
-                task: task,
-                onDelete: _deleteWorkOrder, // 🎯 Silme fonksiyonu bağlandı
-              );
+              return TaskCard(task: task, onDelete: _deleteWorkOrder);
             },
           );
         } else {
           final int index = _statusFilters.indexOf(statusFilter);
           return Center(
-            child: Text('${_tabTitles[index]} iş emri bulunamadı.'),
+            child: Text(
+              '${_tabTitles[index]} iş emri bulunamadı.',
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
           );
         }
       },
@@ -138,23 +146,29 @@ class _TaskManagementPageState extends State<TaskManagementPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.surface,
       appBar: AppBar(
         title: const Text('İş Emri Yönetimi'),
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
         bottom: TabBar(
-          // Sekme Başlıkları
           controller: _tabController,
+          indicatorColor: Colors.white,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
           tabs: _tabTitles.map((title) => Tab(text: title)).toList(),
         ),
       ),
       body: TabBarView(
-        // Sekme İçerikleri
         controller: _tabController,
         children: _statusFilters.map((status) {
-          return _buildTaskList(status); // Her duruma göre listeyi çeker
+          return _buildTaskList(status);
         }).toList(),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showCreateTaskModal,
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
         label: const Text('Yeni İş Emri'),
       ),
@@ -162,46 +176,51 @@ class _TaskManagementPageState extends State<TaskManagementPage>
   }
 }
 
-// --- İş Emri Kartı Widgetı  ---
 class TaskCard extends StatelessWidget {
   final WorkOrder task;
-  final ValueChanged<int> onDelete; // Silme callback'i
+  final ValueChanged<int> onDelete;
 
   const TaskCard({required this.task, required this.onDelete, super.key});
 
   Color _getStatusColor(TaskStatus status) {
     switch (status) {
       case TaskStatus.NEW:
-        return Colors.red.shade700;
+        return AppColors.error;
       case TaskStatus.IN_PROGRESS:
-        return Colors.orange.shade700;
+        return AppColors.warning;
       case TaskStatus.COMPLETED:
-        return Colors.green.shade700;
+        return AppColors.success;
       default:
-        return Colors.grey;
+        return AppColors.textSecondary;
     }
   }
 
-  // Silme Onayı Modalı
   void _confirmDelete(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('İş Emrini Sil'),
+        title: const Text(
+          'İş Emrini Sil',
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
         content: Text(
           '${task.title} başlıklı iş emrini silmek istediğinizden emin misiniz?',
+          style: const TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('İptal'),
+            child: const Text(
+              'İptal',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              onDelete(task.id); // Silme işlemini başlat
+              onDelete(task.id);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             child: const Text('Sil', style: TextStyle(color: Colors.white)),
           ),
         ],
@@ -214,38 +233,56 @@ class TaskCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       elevation: 3,
+      color: AppColors.background,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
         leading: Icon(Icons.engineering, color: _getStatusColor(task.status)),
         title: Text(
           task.title,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Durum: ${task.statusDisplay}'),
+            Text(
+              'Durum: ${task.statusDisplay}',
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
             if (task.assignedWorkerName != null)
-              Text('Atanan: ${task.assignedWorkerName}'),
-            Text('Adres: ${task.customerAddress}'),
+              Text(
+                'Atanan: ${task.assignedWorkerName}',
+                style: const TextStyle(color: AppColors.textSecondary),
+              ),
+            Text(
+              'Adres: ${task.customerAddress}',
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
           ],
         ),
         trailing: Row(
-          // Trailing'i Row yaparak silme ve detay butonunu ayırıyoruz
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Silme Butonu
             IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
+              icon: const Icon(Icons.delete, color: AppColors.error),
               tooltip: 'İş Emrini Sil',
-              onPressed: () => _confirmDelete(context), // Onay modalını aç
+              onPressed: () => _confirmDelete(context),
             ),
-            const Icon(Icons.arrow_forward_ios, size: 16),
+            const Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: AppColors.textSecondary,
+            ),
           ],
         ),
         onTap: () {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Detaylar için ${task.title} görevine tıklandı'),
+              backgroundColor: AppColors.primary,
+              behavior: SnackBarBehavior.floating,
             ),
           );
         },

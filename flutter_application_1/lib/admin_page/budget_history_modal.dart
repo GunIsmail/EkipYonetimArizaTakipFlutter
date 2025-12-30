@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/admin_budget_service.dart';
 import '../services/budget_transaction_model.dart';
+import '../constants/app_colors.dart';
 
 class BudgetHistoryModal extends StatefulWidget {
   final int workerId;
@@ -27,7 +28,6 @@ class _BudgetHistoryModalState extends State<BudgetHistoryModal> {
   @override
   void initState() {
     super.initState();
-    // Servis üzerinden veriyi çekiyoruz
     _historyFuture = _budgetService.fetchHistory(
       widget.workerId,
       widget.accessToken,
@@ -39,14 +39,11 @@ class _BudgetHistoryModalState extends State<BudgetHistoryModal> {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       elevation: 5,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.background,
       child: Container(
-        // Yüksekliği ekranın %75'i yaptık
         height: MediaQuery.of(context).size.height * 0.75,
         width: MediaQuery.of(context).size.width * 0.9,
-        padding: const EdgeInsets.all(
-          0,
-        ), // Padding'i kaldırdık, içeride vereceğiz
+        padding: const EdgeInsets.all(0),
         child: Column(
           children: [
             // --- Modal Başlığı ---
@@ -59,20 +56,24 @@ class _BudgetHistoryModalState extends State<BudgetHistoryModal> {
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'Bütçe Geçmişi (ID: ${widget.workerId})',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 14,
+                    ),
                   ),
                 ],
               ),
             ),
 
-            // --- Tablo Başlık Satırı (Renkli Arkaplan) ---
+            // --- Tablo Başlık Satırı ---
             Container(
-              color: Colors.grey[100], // Hafif gri arka plan
+              color: AppColors.surface,
               padding: const EdgeInsets.symmetric(
                 horizontal: 16.0,
                 vertical: 12.0,
@@ -85,7 +86,7 @@ class _BudgetHistoryModalState extends State<BudgetHistoryModal> {
                       'Tarih / İşlemi Yapan',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: AppColors.textPrimary,
                       ),
                     ),
                   ),
@@ -96,7 +97,7 @@ class _BudgetHistoryModalState extends State<BudgetHistoryModal> {
                       textAlign: TextAlign.right,
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: AppColors.textPrimary,
                       ),
                     ),
                   ),
@@ -111,7 +112,11 @@ class _BudgetHistoryModalState extends State<BudgetHistoryModal> {
                 future: _historyFuture,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
+                      ),
+                    );
                   } else if (snapshot.hasError) {
                     return Center(
                       child: Padding(
@@ -119,7 +124,7 @@ class _BudgetHistoryModalState extends State<BudgetHistoryModal> {
                         child: Text(
                           'Hata: ${snapshot.error}',
                           textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.red),
+                          style: const TextStyle(color: AppColors.error),
                         ),
                       ),
                     );
@@ -131,18 +136,17 @@ class _BudgetHistoryModalState extends State<BudgetHistoryModal> {
                           Icon(
                             Icons.history,
                             size: 48,
-                            color: Colors.grey[300],
+                            color: AppColors.textSecondary.withOpacity(0.5),
                           ),
                           const SizedBox(height: 10),
-                          Text(
+                          const Text(
                             'Kayıt bulunamadı.',
-                            style: TextStyle(color: Colors.grey[600]),
+                            style: TextStyle(color: AppColors.textSecondary),
                           ),
                         ],
                       ),
                     );
                   }
-
                   final history = snapshot.data!;
                   return ListView.separated(
                     padding: const EdgeInsets.symmetric(vertical: 8),
@@ -151,8 +155,6 @@ class _BudgetHistoryModalState extends State<BudgetHistoryModal> {
                         const Divider(height: 1),
                     itemBuilder: (context, index) {
                       final tx = history[index];
-                      // YANLIŞ OLAN:
-                      // DOĞRU OLAN (String'i DateTime'a çeviriyoruz):
                       final formattedDate = DateFormat(
                         'dd.MM.yyyy HH:mm',
                       ).format(DateTime.parse(tx.timestamp));
@@ -176,23 +178,24 @@ class _BudgetHistoryModalState extends State<BudgetHistoryModal> {
                                     style: const TextStyle(
                                       fontWeight: FontWeight.w600,
                                       fontSize: 14,
+                                      color: AppColors.textPrimary,
                                     ),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
                                     'Yönetici: ${tx.conductedBy}',
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       fontSize: 12,
-                                      color: Colors.grey[600],
+                                      color: AppColors.textSecondary,
                                     ),
                                   ),
                                   if (tx.description.isNotEmpty) ...[
                                     const SizedBox(height: 4),
                                     Text(
                                       tx.description,
-                                      style: TextStyle(
+                                      style: const TextStyle(
                                         fontSize: 13,
-                                        color: Colors.grey[800],
+                                        color: AppColors.textPrimary,
                                         fontStyle: FontStyle.italic,
                                       ),
                                     ),
@@ -200,7 +203,6 @@ class _BudgetHistoryModalState extends State<BudgetHistoryModal> {
                                 ],
                               ),
                             ),
-
                             Expanded(
                               flex: 2,
                               child: Column(
@@ -212,8 +214,8 @@ class _BudgetHistoryModalState extends State<BudgetHistoryModal> {
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
                                       color: tx.isAddition
-                                          ? Colors.green.shade700
-                                          : Colors.red.shade700,
+                                          ? AppColors.success
+                                          : AppColors.error,
                                     ),
                                   ),
                                   Text(
@@ -221,8 +223,8 @@ class _BudgetHistoryModalState extends State<BudgetHistoryModal> {
                                     style: TextStyle(
                                       fontSize: 10,
                                       color: tx.isAddition
-                                          ? Colors.green.shade300
-                                          : Colors.red.shade300,
+                                          ? AppColors.success
+                                          : AppColors.error,
                                     ),
                                   ),
                                 ],
@@ -236,16 +238,13 @@ class _BudgetHistoryModalState extends State<BudgetHistoryModal> {
                 },
               ),
             ),
-
-            // --- Alt Buton ---
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors
-                        .blueAccent, // Tema renginize göre değiştirebilirsiniz
+                    backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
