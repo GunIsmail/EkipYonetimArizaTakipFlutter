@@ -1,36 +1,35 @@
-// Dosya: lib/widgets/worker_task_card.dart
+// lib/widgets/worker_task_card.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../admin_page/task_model.dart';
+import '../constants/app_colors.dart';
 
 class WorkerTaskCard extends StatelessWidget {
   final WorkOrder task;
-  // Mevcut callback
   final Function(int taskId) onTaskRequest;
-  // YENİ CALLBACK: Tamamlama işlemi için
   final Function(int taskId, String desc, double amount) onTaskComplete;
 
   const WorkerTaskCard({
     required this.task,
     required this.onTaskRequest,
-    required this.onTaskComplete, // Constructor'a ekledik
+    required this.onTaskComplete,
     super.key,
   });
 
   Color _getStatusColor(TaskStatus status) {
     switch (status) {
       case TaskStatus.NEW:
-        return const Color(0xFF6C63FF);
+        return AppColors.primary;
       case TaskStatus.IN_PROGRESS:
-        return Colors.orangeAccent;
+        return AppColors.warning;
       case TaskStatus.COMPLETED:
-        return Colors.green;
+        return AppColors.success;
       default:
-        return Colors.grey;
+        return AppColors.textSecondary;
     }
   }
 
-  // --- YENİ EKLENEN KISIM: Tamamlama Dialog'u ---
+  // --- Tamamlama Dialog'u ---
   void _showCompletionDialog(BuildContext context) {
     final TextEditingController descController = TextEditingController();
     final TextEditingController amountController = TextEditingController();
@@ -39,13 +38,16 @@ class WorkerTaskCard extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Görevi Tamamla & Bütçe İste'),
+        title: const Text(
+          'Görevi Tamamla & Bütçe İste',
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
               'Görevi tamamlarken yaptığınız harcamayı ve yapılan işlemin özetini giriniz.',
-              style: TextStyle(fontSize: 13, color: Colors.grey),
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -53,7 +55,7 @@ class WorkerTaskCard extends StatelessWidget {
               decoration: const InputDecoration(
                 labelText: 'Yapılan İşlemler (Açıklama)',
                 border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.description),
+                prefixIcon: Icon(Icons.description, color: AppColors.primary),
               ),
               maxLines: 3,
             ),
@@ -69,7 +71,7 @@ class WorkerTaskCard extends StatelessWidget {
               decoration: const InputDecoration(
                 labelText: 'Talep Edilen Tutar (₺)',
                 border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.attach_money),
+                prefixIcon: Icon(Icons.attach_money, color: AppColors.primary),
               ),
             ),
           ],
@@ -77,7 +79,10 @@ class WorkerTaskCard extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('İptal', style: TextStyle(color: Colors.grey)),
+            child: const Text(
+              'İptal',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
@@ -85,16 +90,14 @@ class WorkerTaskCard extends StatelessWidget {
               final amount = double.tryParse(amountController.text) ?? 0.0;
 
               if (desc.isEmpty) {
-                // Basit validasyon
                 return;
               }
 
               Navigator.pop(ctx);
-              // Logic katmanına verileri yolluyoruz
               onTaskComplete(task.id, desc, amount);
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
+              backgroundColor: AppColors.success,
               foregroundColor: Colors.white,
             ),
             child: const Text('Onaya Gönder'),
@@ -104,25 +107,36 @@ class WorkerTaskCard extends StatelessWidget {
     );
   }
 
-  // --- Mevcut Talep Onayı ---
+  // --- Talep Onayı ---
   void _confirmTaskRequest(BuildContext context) {
-    // ... (Eski kodunuzla aynı, burayı kısalttım yer kaplamasın diye)
-    // Buradaki kod aynen kalacak, sadece onTaskRequest çağırılıyor.
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Görevi Talep Et'),
-        content: Text('${task.title} görevini almak istiyor musunuz?'),
+        title: const Text(
+          'Görevi Talep Et',
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
+        content: Text(
+          '${task.title} görevini almak istiyor musunuz?',
+          style: const TextStyle(color: AppColors.textSecondary),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('İptal'),
+            child: const Text(
+              'İptal',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
               onTaskRequest(task.id);
             },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Talep Et'),
           ),
         ],
@@ -137,6 +151,7 @@ class WorkerTaskCard extends StatelessWidget {
     final statusColor = _getStatusColor(task.status);
 
     return Card(
+      color: AppColors.background,
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -144,7 +159,7 @@ class WorkerTaskCard extends StatelessWidget {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // Üst Kısım (Icon, Title, Status) - Değişmedi
+            // Üst Kısım (Icon, Title, Status)
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -166,6 +181,7 @@ class WorkerTaskCard extends StatelessWidget {
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
                         ),
                       ),
                       Container(
@@ -196,11 +212,15 @@ class WorkerTaskCard extends StatelessWidget {
             // Bilgiler
             Row(
               children: [
-                Icon(Icons.location_on_outlined, size: 16, color: Colors.grey),
+                const Icon(
+                  Icons.location_on_outlined,
+                  size: 16,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   task.customerAddress ?? '',
-                  style: const TextStyle(color: Colors.grey),
+                  style: const TextStyle(color: AppColors.textSecondary),
                 ),
               ],
             ),
@@ -214,7 +234,7 @@ class WorkerTaskCard extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: () => _confirmTaskRequest(context),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6C63FF),
+                    backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                   ),
                   child: const Text('Görevi Talep Et'),
@@ -228,7 +248,7 @@ class WorkerTaskCard extends StatelessWidget {
                   icon: const Icon(Icons.check_circle_outline),
                   label: const Text('Tamamla & Bütçe İste'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange, // Dikkat çekici renk
+                    backgroundColor: AppColors.warning,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(

@@ -1,9 +1,10 @@
 // Dosya: lib/pages/employee_view.dart
+
 import 'package:flutter/material.dart';
-import '../widgets/worker_task_card.dart';
+import '../widgets/worker_task_grid_card.dart';
 import '../admin_page/task_model.dart';
-// Havuz verisini çekmek için servisi import ediyoruz
 import '../services/employee_service.dart';
+import '../constants/app_colors.dart';
 
 class EmployeeView extends StatefulWidget {
   final String username;
@@ -11,14 +12,12 @@ class EmployeeView extends StatefulWidget {
   final String currentAvailability;
   final List<String> availabilityOptions;
 
-  // Callback Fonksiyonlar
   final Function(String) onStatusChanged;
   final VoidCallback onLogout;
   final Function(int) onTaskRequest;
   final Function(int taskId, String desc, double amount) onTaskComplete;
   final VoidCallback onShowHistory;
 
-  // Kişisel işleri çekme fonksiyonu (Page'den gelir)
   final Future<List<WorkOrder>> Function(String statusFilter) fetchTasks;
 
   const EmployeeView({
@@ -43,7 +42,6 @@ class _EmployeeViewState extends State<EmployeeView>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  // 3 Sekme Başlığı
   final List<String> _tabTitles = [
     'İş Havuzu',
     'Üzerimdeki İşler',
@@ -53,7 +51,6 @@ class _EmployeeViewState extends State<EmployeeView>
   @override
   void initState() {
     super.initState();
-    // Sekme sayısını 3 yaptık
     _tabController = TabController(length: _tabTitles.length, vsync: this);
   }
 
@@ -65,11 +62,8 @@ class _EmployeeViewState extends State<EmployeeView>
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryColor = Color(0xFF6C63FF);
-    const Color secondaryColor = Color(0xFF4B45B2);
-
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.background,
       body: Stack(
         children: [
           // Arka Plan Gradyanı
@@ -77,7 +71,7 @@ class _EmployeeViewState extends State<EmployeeView>
             height: MediaQuery.of(context).size.height * 0.35,
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [primaryColor, secondaryColor],
+                colors: [AppColors.primary, AppColors.secondary],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -91,30 +85,26 @@ class _EmployeeViewState extends State<EmployeeView>
             child: Column(
               children: [
                 _buildHeader(),
-                _buildInfoCard(primaryColor),
+                _buildInfoCard(),
                 const SizedBox(height: 20),
 
                 // --- TAB BAR ---
                 TabBar(
                   controller: _tabController,
-                  labelColor: primaryColor,
-                  unselectedLabelColor: Colors.grey,
-                  indicatorColor: primaryColor,
+                  labelColor: AppColors.primary,
+                  unselectedLabelColor: AppColors.textSecondary,
+                  indicatorColor: AppColors.primary,
+                  indicatorWeight: 3,
                   tabs: _tabTitles.map((t) => Tab(text: t)).toList(),
                 ),
 
-                // --- TAB VIEW (İçerikler) ---
+                // --- TAB VIEW ---
                 Expanded(
                   child: TabBarView(
                     controller: _tabController,
                     children: [
-                      // 1. Sekme: HAVUZ (Yeni Fonksiyon - Servisten direkt çeker)
                       _buildPoolList(),
-
-                      // 2. Sekme: SÜREÇTEKİLER (Page'den gelen fonksiyon)
                       _buildMyTaskList('IN_PROGRESS'),
-
-                      // 3. Sekme: TAMAMLANANLAR (Page'den gelen fonksiyon)
                       _buildMyTaskList('COMPLETED'),
                     ],
                   ),
@@ -127,32 +117,48 @@ class _EmployeeViewState extends State<EmployeeView>
     );
   }
 
-  // --- 1. HAVUZ LİSTESİ WIDGET'I ---
+  // --- 1. HAVUZ (GRID) ---
   Widget _buildPoolList() {
     return FutureBuilder<List<WorkOrder>>(
-      future: EmployeeService().fetchPoolTasks(), // Servisten direkt çağrı
+      future: EmployeeService().fetchPoolTasks(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
+          );
         }
         if (snapshot.hasError) {
-          return Center(child: Text("Hata: ${snapshot.error}"));
+          return Center(
+            child: Text(
+              "Hata: ${snapshot.error}",
+              style: const TextStyle(color: AppColors.error),
+            ),
+          );
         }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text("Havuzda açık iş yok."));
+          return const Center(
+            child: Text(
+              "Havuzda açık iş yok.",
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          );
         }
 
-        return ListView.builder(
+        return GridView.builder(
           padding: const EdgeInsets.all(16),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2, // 2 sütun
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            mainAxisExtent: 200, // ✅ Kart yüksekliğini sabitledik
+          ),
           itemCount: snapshot.data!.length,
           itemBuilder: (ctx, i) {
             final task = snapshot.data![i];
-            return WorkerTaskCard(
+            return WorkerTaskGridCard(
               task: task,
-              // Havuzdaki iş için "Talep Et" butonu aktiftir
               onTaskRequest: widget.onTaskRequest,
-              // Havuzdaki iş tamamlanamaz, o yüzden burası işlevsiz olabilir veya kontrol edilebilir
-              onTaskComplete: widget.onTaskComplete,
+              onTaskComplete: (id, desc, amount) {},
             );
           },
         );
@@ -160,28 +166,47 @@ class _EmployeeViewState extends State<EmployeeView>
     );
   }
 
-  // --- 2. KİŞİSEL GÖREV LİSTESİ WIDGET'I ---
+  // --- 2/3. KİŞİSEL GÖREVLER (GRID) ---
   Widget _buildMyTaskList(String status) {
     return FutureBuilder<List<WorkOrder>>(
-      future: widget.fetchTasks(status), // Page'den gelen fonksiyonu kullanır
+      future: widget.fetchTasks(status),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
+          );
         }
         if (snapshot.hasError) {
-          return Center(child: Text("Hata: ${snapshot.error}"));
+          return Center(
+            child: Text(
+              "Hata: ${snapshot.error}",
+              style: const TextStyle(color: AppColors.error),
+            ),
+          );
         }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           String msg = status == 'IN_PROGRESS'
               ? "Üzerinizde aktif iş yok."
               : "Henüz tamamlanan iş yok.";
-          return Center(child: Text(msg));
+          return Center(
+            child: Text(
+              msg,
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+          );
         }
 
-        return ListView.builder(
+        return GridView.builder(
           padding: const EdgeInsets.all(16),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            childAspectRatio: 1.0,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            mainAxisExtent: 200, 
+          ),
           itemCount: snapshot.data!.length,
-          itemBuilder: (ctx, i) => WorkerTaskCard(
+          itemBuilder: (ctx, i) => WorkerTaskGridCard(
             task: snapshot.data![i],
             onTaskRequest: widget.onTaskRequest,
             onTaskComplete: widget.onTaskComplete,
@@ -191,6 +216,7 @@ class _EmployeeViewState extends State<EmployeeView>
     );
   }
 
+  // --- HEADER ---
   Widget _buildHeader() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -214,11 +240,14 @@ class _EmployeeViewState extends State<EmployeeView>
     );
   }
 
-  Widget _buildInfoCard(Color primaryColor) {
+  // --- INFO CARD ---
+  Widget _buildInfoCard() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Card(
+        color: AppColors.background,
         elevation: 8,
+        shadowColor: AppColors.primary.withOpacity(0.3),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Padding(
           padding: const EdgeInsets.all(20.0),
@@ -226,38 +255,42 @@ class _EmployeeViewState extends State<EmployeeView>
             children: [
               Row(
                 children: [
-                  const Icon(Icons.person, color: Color(0xFF6C63FF)),
+                  const Icon(Icons.person, color: AppColors.primary),
                   const SizedBox(width: 12),
                   Text(
                     'Hoş Geldin, ${widget.username}',
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                 ],
               ),
-              const Divider(height: 24),
+              const Divider(height: 24, color: AppColors.textSecondary),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
+                  const Text(
                     'Mevcut Bütçe',
-                    style: TextStyle(color: Colors.grey[600]),
+                    style: TextStyle(color: AppColors.textSecondary),
                   ),
                   Row(
                     children: [
                       Text(
                         '${widget.budget.toStringAsFixed(2)} ₺',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w900,
-                          color: primaryColor,
+                          color: AppColors.primary,
                         ),
                       ),
                       const SizedBox(width: 8),
                       IconButton(
-                        icon: const Icon(Icons.history, color: Colors.orange),
+                        icon: const Icon(
+                          Icons.history,
+                          color: AppColors.warning,
+                        ),
                         tooltip: 'Bütçe Geçmişi',
                         onPressed: widget.onShowHistory,
                       ),
@@ -275,10 +308,13 @@ class _EmployeeViewState extends State<EmployeeView>
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
                   ),
                   filled: true,
-                  fillColor: Colors.grey[50],
+                  fillColor: AppColors.surface,
                 ),
+                dropdownColor: AppColors.background,
+                style: const TextStyle(color: AppColors.textPrimary),
                 items: widget.availabilityOptions
                     .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                     .toList(),

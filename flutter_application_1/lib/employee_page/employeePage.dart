@@ -1,7 +1,7 @@
 // Dosya: lib/pages/employee_page.dart
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:intl/intl.dart'; // Tarih formatı için
+import 'package:intl/intl.dart';
 
 // Proje dosyaları
 import '../services/employee_service.dart';
@@ -9,6 +9,7 @@ import '../login_page/login_page.dart';
 import '../admin_page/task_model.dart';
 import '../services/budget_transaction_model.dart';
 import 'employee_view.dart';
+import '../constants/app_colors.dart';
 
 class EmployeePage extends StatefulWidget {
   final int workerId;
@@ -121,13 +122,13 @@ class _EmployeePageState extends State<EmployeePage> {
   void _showBudgetHistoryModal() {
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true, // Tam ekrana yakın açılması için
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
         return Container(
-          height: MediaQuery.of(context).size.height * 0.75, // Ekranın %75'i
+          height: MediaQuery.of(context).size.height * 0.75,
           decoration: const BoxDecoration(
-            color: Colors.white,
+            color: AppColors.background, // Colors.white yerine
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: Column(
@@ -146,23 +147,30 @@ class _EmployeePageState extends State<EmployeePage> {
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary, // Siyah yerine
                           ),
                         ),
                         SizedBox(height: 4),
                         Text(
                           'Tarih / İşlemi Yapan / Açıklama',
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary, // Gri yerine
+                          ),
                         ),
                       ],
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close),
+                      icon: const Icon(
+                        Icons.close,
+                        color: AppColors.textSecondary,
+                      ),
                       onPressed: () => Navigator.pop(context),
                     ),
                   ],
                 ),
               ),
-              const Divider(height: 1),
+              const Divider(height: 1, color: AppColors.textSecondary),
 
               // --- Liste Kısmı ---
               Expanded(
@@ -170,7 +178,11 @@ class _EmployeePageState extends State<EmployeePage> {
                   future: _employeeService.fetchBudgetHistory(widget.workerId),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
+                      return const Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.primary,
+                        ),
+                      );
                     }
                     if (!snapshot.hasData || snapshot.data!.isEmpty) {
                       return const Center(
@@ -180,12 +192,12 @@ class _EmployeePageState extends State<EmployeePage> {
                             Icon(
                               Icons.receipt_long,
                               size: 48,
-                              color: Colors.grey,
+                              color: AppColors.textSecondary,
                             ),
                             SizedBox(height: 10),
                             Text(
                               "Henüz işlem geçmişi yok.",
-                              style: TextStyle(color: Colors.grey),
+                              style: TextStyle(color: AppColors.textSecondary),
                             ),
                           ],
                         ),
@@ -196,7 +208,7 @@ class _EmployeePageState extends State<EmployeePage> {
                       padding: const EdgeInsets.all(0),
                       itemCount: snapshot.data!.length,
                       separatorBuilder: (context, index) =>
-                          const Divider(height: 1),
+                          const Divider(height: 1, color: AppColors.surface),
                       itemBuilder: (context, index) {
                         final item = snapshot.data![index];
                         final isPositive = item.signedAmount.startsWith('+');
@@ -214,9 +226,10 @@ class _EmployeePageState extends State<EmployeePage> {
                             horizontal: 16,
                             vertical: 12,
                           ),
+                          // Zebra Efekti: Background vs Surface
                           color: index % 2 == 0
-                              ? Colors.white
-                              : Colors.grey[50], // Zebra efekti
+                              ? AppColors.background
+                              : AppColors.surface,
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -231,7 +244,7 @@ class _EmployeePageState extends State<EmployeePage> {
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 14,
-                                        color: Colors.black87,
+                                        color: AppColors.textPrimary,
                                       ),
                                     ),
                                     const SizedBox(height: 4),
@@ -239,14 +252,14 @@ class _EmployeePageState extends State<EmployeePage> {
                                     // 2. Yönetici Adı
                                     Text(
                                       'Yönetici: ${item.conductedBy}',
-                                      style: TextStyle(
+                                      style: const TextStyle(
                                         fontSize: 12,
-                                        color: Colors.grey[700],
+                                        color: AppColors.textSecondary,
                                       ),
                                     ),
                                     const SizedBox(height: 6),
 
-                                    // 3. AÇIKLAMA (Burayı istediğin gibi belirginleştirdik)
+                                    // 3. AÇIKLAMA
                                     Text(
                                       item.description.isNotEmpty
                                           ? item.description
@@ -254,7 +267,8 @@ class _EmployeePageState extends State<EmployeePage> {
                                       style: TextStyle(
                                         fontSize: 13,
                                         fontStyle: FontStyle.italic,
-                                        color: Colors.grey[800],
+                                        color: AppColors.textPrimary
+                                            .withOpacity(0.8),
                                       ),
                                     ),
                                   ],
@@ -271,8 +285,9 @@ class _EmployeePageState extends State<EmployeePage> {
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
                                       color: isPositive
-                                          ? Colors.green[700]
-                                          : Colors.red[700],
+                                          ? AppColors
+                                                .success // Yeşil
+                                          : AppColors.error, // Kırmızı
                                     ),
                                   ),
                                   const SizedBox(height: 2),
@@ -281,8 +296,8 @@ class _EmployeePageState extends State<EmployeePage> {
                                     style: TextStyle(
                                       fontSize: 10,
                                       color: isPositive
-                                          ? Colors.green
-                                          : Colors.red,
+                                          ? AppColors.success
+                                          : AppColors.error,
                                     ),
                                   ),
                                 ],
@@ -296,7 +311,7 @@ class _EmployeePageState extends State<EmployeePage> {
                 ),
               ),
 
-              // --- Kapat Butonu (Opsiyonel, zaten yukarıda çarpı var) ---
+              // --- Kapat Butonu ---
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: SizedBox(
@@ -304,7 +319,7 @@ class _EmployeePageState extends State<EmployeePage> {
                   child: ElevatedButton(
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blueAccent,
+                      backgroundColor: AppColors.primary, // Primary renk
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
@@ -334,12 +349,16 @@ class _EmployeePageState extends State<EmployeePage> {
 
   void _showSnackBar(String message, {bool? isSuccess}) {
     Color? bgColor;
-    if (isSuccess == true) bgColor = Colors.green;
-    if (isSuccess == false) bgColor = Colors.redAccent;
+    // Renkleri AppColors'dan alıyoruz
+    if (isSuccess == true) bgColor = AppColors.success;
+    if (isSuccess == false) bgColor = AppColors.error;
+    // null ise varsayılan tema rengi veya gri kalabilir,
+    // şimdilik işlem sürüyor gibi durumlarda primary kullanabiliriz
+    if (isSuccess == null) bgColor = AppColors.textSecondary;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Text(message, style: const TextStyle(color: Colors.white)),
         backgroundColor: bgColor,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(milliseconds: 1500),
@@ -358,7 +377,7 @@ class _EmployeePageState extends State<EmployeePage> {
       onLogout: _logout,
       onTaskRequest: _handleTaskRequest,
       onTaskComplete: _handleTaskCompletion,
-      onShowHistory: _showBudgetHistoryModal, // <-- BAĞLANTI BURADA
+      onShowHistory: _showBudgetHistoryModal,
       fetchTasks: _fetchTasksForView,
     );
   }
