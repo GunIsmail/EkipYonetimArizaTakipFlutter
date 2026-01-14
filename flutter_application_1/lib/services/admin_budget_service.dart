@@ -5,7 +5,6 @@ import "budget_transaction_model.dart";
 import '../Definitions.dart';
 
 class AdminBudgetService {
-  // Singleton pattern (İsteğe bağlı, ama servisler için yaygındır)
   static final AdminBudgetService _instance = AdminBudgetService._internal();
   factory AdminBudgetService() => _instance;
   AdminBudgetService._internal();
